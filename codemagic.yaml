@@ -10,7 +10,7 @@ workflows:
         TEAM_ID: LRT5QA283X
         P12_PASSWORD: Encrypted(put-this-in-Env-Vars-UI-as-Secret)
 
-    code_signing:
+  code_signing:
       certificates:
         - certificate: MindBreathDistribution     # must match your .p12 reference name in Codemagic
           password: $P12_PASSWORD
