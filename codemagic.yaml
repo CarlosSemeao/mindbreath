@@ -27,12 +27,13 @@ workflows:
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
-      ios_signing:
-        certificates:
-          - certificate: MindBreathDistribution.p12     # matches Codemagic UI
-            password: $P12_PASSWORD                     # add as Secret in Env variables
-        provisioning_profiles:
-          - MindBreath_AppStore.mobileprovision         # matches Codemagic UI
+
+    code_signing:
+      certificates:
+        - certificate: MindBreathDistribution.p12
+          password: $P12_PASSWORD   # must be set in Codemagic Environment variables (Secret)
+      provisioning_profiles:
+        - MindBreath_AppStore.mobileprovision
 
     scripts:
       - name: Get dependencies
