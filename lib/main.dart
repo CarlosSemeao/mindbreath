@@ -10,92 +10,92 @@ void main() {
   runApp(const MindBreathApp());
 }
 
-/// ===== Theme (teal palette, light/dark aware) ===================
+/// ===== Theme (teal, light/dark) =================================
 class T {
-  // app primary (controls, filled button)
   static const primary = CupertinoDynamicColor.withBrightness(
-    color: Color(0xFF14B8A6),      // teal 500
-    darkColor: Color(0xFF2DD4BF),  // teal 400 (brighter on dark)
+    color: Color(0xFF14B8A6), darkColor: Color(0xFF2DD4BF),
   );
-
-  // background
   static const bg = CupertinoDynamicColor.withBrightness(
-    color: Color(0xFFF6FBFA),      // very light mint
-    darkColor: Color(0xFF0C1413),  // near-black teal
+    color: Color(0xFFF6FBFA), darkColor: Color(0xFF0C1413),
   );
-
-  // ink
   static const ink = CupertinoDynamicColor.withBrightness(
-    color: Color(0xFF0F172A),      // slate-900
-    darkColor: Color(0xFFE2E8F0),  // slate-200
+    color: Color(0xFF0F172A), darkColor: Color(0xFFE2E8F0),
   );
-
-  // subtle surface for the top chip
   static const surface = CupertinoDynamicColor.withBrightness(
-    color: Color(0xAAFFFFFF),
-    darkColor: Color(0x3314B8A6),
+    color: Color(0xAAFFFFFF), darkColor: Color(0x3314B8A6),
   );
-
-  // ring fills (same hue, different alphas)
   static Color ring(BuildContext c, double a) =>
       CupertinoDynamicColor.resolve(primary, c).withOpacity(a);
 }
 
 class MindBreathApp extends StatelessWidget {
   const MindBreathApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return CupertinoApp(
       debugShowCheckedModeBanner: false,
-      theme: const CupertinoThemeData(
-        primaryColor: T.primary, // <- sets filled button & switches
-        barBackgroundColor: T.surface,
-      ),
+      theme: const CupertinoThemeData(primaryColor: T.primary, barBackgroundColor: T.surface),
       home: const RootTabs(),
     );
   }
 }
 
-/// ================= Root with 2 tabs =============================
+/// ================= Root with Tabs ===============================
 class RootTabs extends StatelessWidget {
   const RootTabs({super.key});
-
   @override
   Widget build(BuildContext context) {
     return CupertinoTabScaffold(
-      // DO NOT use const here (breaks assert in CupertinoTabBar)
       tabBar: CupertinoTabBar(
-        backgroundColor:
-            CupertinoDynamicColor.resolve(T.surface, context),
+        backgroundColor: CupertinoDynamicColor.resolve(T.surface, context),
         items: const [
-          BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.circle), label: 'Breathe'),
-          BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.chart_bar_alt_fill), label: 'Progress'),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.circle), label: 'Breathe'),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.chart_bar_alt_fill), label: 'Progress'),
         ],
       ),
-      tabBuilder: (context, index) {
-        return CupertinoTabView(
-          builder: (_) => index == 0 ? const BreathePage() : const ProgressPage(),
-        );
-      },
+      tabBuilder: (_, i) => CupertinoTabView(
+        builder: (_) => i == 0 ? const BreathePage() : const ProgressPage(),
+      ),
     );
   }
 }
 
-/// ================= Breathe page (minimal, centered) =============
-enum Phase { inhale, hold, exhale, rest }
+/// ================= Settings (durations) =========================
+/// Presets + custom durations; persisted to SharedPreferences
+class BreathSettings {
+  final int inh, hold, ex, rest; // seconds
+  const BreathSettings(this.inh, this.hold, this.ex, this.rest);
 
-class BreathConfig {
-  final Duration inhale, hold, exhale, rest;
-  const BreathConfig({
-    this.inhale = const Duration(seconds: 5),
-    this.hold   = const Duration(seconds: 5),
-    this.exhale = const Duration(seconds: 8),
-    this.rest   = const Duration(seconds: 3),
-  });
+  static const beginner = BreathSettings(4, 2, 6, 2);
+  static const balanced = BreathSettings(5, 5, 8, 3); // default
+  static const advanced = BreathSettings(6, 6, 10, 4);
+
+  BreathSettings copyWith({int? inh, int? hold, int? ex, int? rest}) =>
+      BreathSettings(inh ?? this.inh, hold ?? this.hold, ex ?? this.ex, rest ?? this.rest);
+
+  Map<String, int> toMap() => {'inh': inh, 'hold': hold, 'ex': ex, 'rest': rest};
+  static BreathSettings fromMap(Map<String, int> m) =>
+      BreathSettings(m['inh'] ?? 5, m['hold'] ?? 5, m['ex'] ?? 8, m['rest'] ?? 3);
 }
+
+class SettingsStore {
+  static const _k = 'MB.settings.v1';
+  final SharedPreferences prefs;
+  SettingsStore(this.prefs);
+
+  BreathSettings load() {
+    final list = prefs.getStringList(_k);
+    if (list == null || list.length != 4) return BreathSettings.balanced;
+    return BreathSettings(int.parse(list[0]), int.parse(list[1]),
+        int.parse(list[2]), int.parse(list[3]));
+  }
+
+  Future<void> save(BreathSettings s) =>
+      prefs.setStringList(_k, [s.inh.toString(), s.hold.toString(), s.ex.toString(), s.rest.toString()]);
+}
+
+/// ================= Breathe Page ================================
+enum Phase { inhale, hold, exhale, rest }
 
 class BreathePage extends StatefulWidget {
   const BreathePage({super.key});
@@ -104,102 +104,91 @@ class BreathePage extends StatefulWidget {
 }
 
 class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin {
-  final _cfg = const BreathConfig();
+  // animated “globe”
+  late final AnimationController _scale;
+  late final AnimationController _float;
 
-  late final AnimationController _scale; // breathing size
-  late final AnimationController _float; // tiny vertical float
   Phase _phase = Phase.rest;
   Timer? _timer;
   bool _running = false;
   bool _haptics = true;
 
   late SharedPreferences _prefs;
+  late SettingsStore _store;
+  BreathSettings _settings = BreathSettings.balanced;
+
+  // weekly progress
   Map<String, int> _week = {};
 
   @override
   void initState() {
     super.initState();
     _scale = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-      lowerBound: 0.70,
-      upperBound: 1.00,
-      value: 0.85,
+      vsync: this, duration: const Duration(milliseconds: 1200),
+      lowerBound: 0.70, upperBound: 1.00, value: 0.85,
     );
-    _float = AnimationController(vsync: this, duration: const Duration(seconds: 8))
-      ..repeat();
-
-    _loadPrefs();
+    _float = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
+    _init();
   }
 
-  Future<void> _loadPrefs() async {
+  Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
+    _store = SettingsStore(_prefs);
+    _settings = _store.load();
+
     for (final s in _prefs.getStringList('week') ?? []) {
-      final parts = s.split('|');
-      if (parts.length == 2) _week[parts[0]] = int.tryParse(parts[1]) ?? 0;
+      final p = s.split('|'); if (p.length == 2) _week[p[0]] = int.tryParse(p[1]) ?? 0;
     }
     setState(() {});
   }
 
   Future<void> _saveToday() async {
     final t = DateTime.now();
-    final key = "${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}";
-    _week[key] = (_week[key] ?? 0) + 1;
+    final k = "${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}";
+    _week[k] = (_week[k] ?? 0) + 1;
 
     final cutoff = t.subtract(const Duration(days: 7));
-    _week.removeWhere((k, _) =>
-        DateTime.parse(k).isBefore(DateTime(cutoff.year, cutoff.month, cutoff.day)));
+    _week.removeWhere((d, _) => DateTime.parse(d).isBefore(DateTime(cutoff.year, cutoff.month, cutoff.day)));
 
     await _prefs.setStringList('week', _week.entries.map((e) => "${e.key}|${e.value}").toList());
   }
 
-  void _start() {
-    if (_running) return;
-    setState(() => _running = true);
-    _go(Phase.inhale);
+  void _start() { if (_running) return; setState(() => _running = true); _go(Phase.inhale); }
+  void _stop() {
+    _timer?.cancel(); _scale.stop();
+    setState(() { _running = false; _phase = Phase.rest; _scale.value = 0.85; });
   }
 
-  void _stop() {
-    _timer?.cancel();
-    _scale.stop();
-    setState(() {
-      _running = false;
-      _phase = Phase.rest;
-      _scale.value = 0.85;
-    });
-  }
+  Duration get _dInhale => Duration(seconds: _settings.inh);
+  Duration get _dHold   => Duration(seconds: _settings.hold);
+  Duration get _dExhale => Duration(seconds: _settings.ex);
+  Duration get _dRest   => Duration(seconds: _settings.rest);
 
   void _go(Phase p) {
     _timer?.cancel();
     setState(() => _phase = p);
     if (_haptics) {
       switch (p) {
-        case Phase.inhale:
-        case Phase.exhale:
-        case Phase.rest:
-          HapticFeedback.selectionClick();
-          break;
-        case Phase.hold:
-          HapticFeedback.lightImpact();
-          break;
+        case Phase.hold: HapticFeedback.lightImpact(); break;
+        default: HapticFeedback.selectionClick(); break;
       }
     }
 
     switch (p) {
       case Phase.inhale:
-        _scale.animateTo(1.00, duration: _cfg.inhale, curve: Curves.easeInOutCubic);
-        _timer = Timer(_cfg.inhale, () => _go(Phase.hold));
+        _scale.animateTo(1.00, duration: _dInhale, curve: Curves.easeInOutCubic);
+        _timer = Timer(_dInhale, () => _go(Phase.hold));
         break;
       case Phase.hold:
-        _timer = Timer(_cfg.hold, () => _go(Phase.exhale));
+        _timer = Timer(_dHold, () => _go(Phase.exhale));
         break;
       case Phase.exhale:
-        _scale.animateTo(0.70, duration: _cfg.exhale, curve: Curves.easeInOutCubic);
-        _timer = Timer(_cfg.exhale, () => _go(Phase.rest));
+        _scale.animateTo(0.70, duration: _dExhale, curve: Curves.easeInOutCubic);
+        _timer = Timer(_dExhale, () => _go(Phase.rest));
         break;
       case Phase.rest:
-        _timer = Timer(_cfg.rest, () async {
-          await _saveToday();                   // count session here
+        _timer = Timer(_dRest, () async {
+          await _saveToday();
           if (_haptics) HapticFeedback.mediumImpact();
           if (_running) _go(Phase.inhale);
         });
@@ -207,20 +196,13 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
     }
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _scale.dispose();
-    _float.dispose();
-    super.dispose();
-  }
-
   String get _label => switch (_phase) {
-        Phase.inhale => 'Inhale',
-        Phase.hold   => 'Hold',
-        Phase.exhale => 'Exhale',
-        Phase.rest   => 'Rest',
+        Phase.inhale => 'Inhale', Phase.hold => 'Hold',
+        Phase.exhale => 'Exhale', Phase.rest => 'Rest',
       };
+
+  @override
+  void dispose() { _timer?.cancel(); _scale.dispose(); _float.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -230,15 +212,18 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
     return CupertinoPageScaffold(
       backgroundColor: bg,
       navigationBar: CupertinoNavigationBar(
-        middle: Text('MindBreath',
-            style: TextStyle(color: ink, fontSize: 22, fontWeight: FontWeight.w600)),
+        middle: Text('MindBreath', style: TextStyle(color: ink, fontSize: 22, fontWeight: FontWeight.w600)),
         border: null,
         backgroundColor: CupertinoDynamicColor.resolve(T.surface, context),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: _openSettings,
+          child: const Icon(CupertinoIcons.gear_alt, size: 22),
+        ),
       ),
       child: SafeArea(
         child: Column(
           children: [
-            // small chip with current phase + haptics toggle
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
               child: _Glass(
@@ -251,10 +236,7 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
                       Row(children: [
                         Text('Haptics', style: TextStyle(color: ink.withOpacity(.6))),
                         const SizedBox(width: 8),
-                        CupertinoSwitch(
-                          value: _haptics,
-                          onChanged: (v) => setState(() => _haptics = v),
-                        ),
+                        CupertinoSwitch(value: _haptics, onChanged: (v) => setState(() => _haptics = v)),
                       ]),
                     ],
                   ),
@@ -262,26 +244,20 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
               ),
             ),
 
-            // Centered globe (takes remaining space)
+            // Centered globe
             Expanded(
               child: AnimatedBuilder(
                 animation: Listenable.merge([_scale, _float]),
                 builder: (context, _) {
-                  // centered, with gentle float
                   final w = MediaQuery.of(context).size.width;
                   final base = w * 0.7;
-                  final s    = _scale.value;
-                  final dy   = math.sin(_float.value * 2 * math.pi) * 6; // px
-                  final d    = base * s;
-
+                  final s = _scale.value;
+                  final dy = math.sin(_float.value * 2 * math.pi) * 6;
+                  final d = base * s;
                   return Center(
                     child: Transform.translate(
                       offset: Offset(0, dy),
-                      child: SizedBox(
-                        width: d,
-                        height: d,
-                        child: _RingsGlobe(label: _label),
-                      ),
+                      child: SizedBox(width: d, height: d, child: _RingsGlobe(label: _label)),
                     ),
                   );
                 },
@@ -293,19 +269,13 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
               child: Row(
                 children: [
-                  Expanded(
-                    child: CupertinoButton.filled(
-                      onPressed: _start,
-                      child: const Text('Start'),
-                    ),
-                  ),
+                  Expanded(child: CupertinoButton.filled(onPressed: _start, child: const Text('Start'))),
                   const SizedBox(width: 12),
                   Expanded(
                     child: CupertinoButton(
                       onPressed: _stop,
                       color: CupertinoDynamicColor.resolve(T.primary, context).withOpacity(0.12),
-                      child: Text('Stop',
-                          style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
+                      child: Text('Stop', style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ],
@@ -316,13 +286,25 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
       ),
     );
   }
+
+  /// Settings sheet (presets + custom pickers)
+  Future<void> _openSettings() async {
+    final result = await showCupertinoModalPopup<BreathSettings>(
+      context: context,
+      builder: (_) => _SettingsSheet(initial: _settings),
+    );
+    if (result != null) {
+      setState(() => _settings = result);
+      await _store.save(result);
+      // if a cycle is running, immediately apply next phase timings
+    }
+  }
 }
 
-/// Frosted minimal card
+/// Frosted card
 class _Glass extends StatelessWidget {
   final Widget child;
   const _Glass({required this.child});
-
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
@@ -334,11 +316,8 @@ class _Glass extends StatelessWidget {
             color: CupertinoDynamicColor.resolve(T.surface, context),
             borderRadius: BorderRadius.circular(16),
             boxShadow: const [
-              BoxShadow(
-                color: Color(0x22000000),
-                blurRadius: 18,
-                offset: Offset(0, 10),
-              )
+              // reduced to a single subtle shadow for crisper edges
+              BoxShadow(color: Color(0x1A000000), blurRadius: 20, offset: Offset(0, 12)),
             ],
           ),
           child: child,
@@ -348,45 +327,32 @@ class _Glass extends StatelessWidget {
   }
 }
 
-/// Minimal concentric “globe” with soft depth
+/// Minimal concentric globe (lighter shadow)
 class _RingsGlobe extends StatelessWidget {
   final String label;
   const _RingsGlobe({required this.label});
-
   @override
   Widget build(BuildContext context) {
-    final c1 = T.ring(context, .18);
-    final c2 = T.ring(context, .10);
-    final c3 = T.ring(context, .06);
+    final c1 = T.ring(context, .16);
+    final c2 = T.ring(context, .09);
+    final c3 = T.ring(context, .05);
     final ink = CupertinoDynamicColor.resolve(T.ink, context);
 
     return Stack(
       fit: StackFit.expand,
       children: [
-        // drop shadow for depth
+        // single soft shadow
         Container(
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(color: Color(0x25000000), blurRadius: 38, spreadRadius: 2, offset: Offset(0, 18)),
-              BoxShadow(color: Color(0x12000000), blurRadius: 8, offset: Offset(0, 2)),
-            ],
+            boxShadow: [BoxShadow(color: Color(0x1A000000), blurRadius: 26, offset: Offset(0, 14))],
           ),
         ),
-        // rings
-        CustomPaint(
-          painter: _RingsPainter(c1: c1, c2: c2, c3: c3),
-        ),
-        // center label
+        CustomPaint(painter: _RingsPainter(c1: c1, c2: c2, c3: c3)),
         Center(
           child: Text(
             label,
-            style: TextStyle(
-              color: ink.withOpacity(.85),
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              letterSpacing: .2,
-            ),
+            style: TextStyle(color: ink.withOpacity(.85), fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: .2),
           ),
         ),
       ],
@@ -397,31 +363,138 @@ class _RingsGlobe extends StatelessWidget {
 class _RingsPainter extends CustomPainter {
   final Color c1, c2, c3;
   _RingsPainter({required this.c1, required this.c2, required this.c3});
-
   @override
   void paint(Canvas canvas, Size size) {
     final r = size.width / 2;
-    final center = Offset(r, r);
-
-    // outer
-    final p1 = Paint()..color = c1..isAntiAlias = true;
-    canvas.drawCircle(center, r, p1);
-
-    // middle
-    final p2 = Paint()..color = c2..isAntiAlias = true;
-    canvas.drawCircle(center, r * .66, p2);
-
-    // inner
-    final p3 = Paint()..color = c3..isAntiAlias = true;
-    canvas.drawCircle(center, r * .36, p3);
+    final c = Offset(r, r);
+    canvas
+      ..drawCircle(c, r, Paint()..color = c1..isAntiAlias = true)
+      ..drawCircle(c, r * .66, Paint()..color = c2..isAntiAlias = true)
+      ..drawCircle(c, r * .36, Paint()..color = c3..isAntiAlias = true);
   }
-
   @override
-  bool shouldRepaint(covariant _RingsPainter old) =>
-      old.c1 != c1 || old.c2 != c2 || old.c3 != c3;
+  bool shouldRepaint(covariant _RingsPainter o) => o.c1 != c1 || o.c2 != c2 || o.c3 != c3;
 }
 
-/// ================= Progress page (simple & working) =============
+/// ================= Settings sheet UI ============================
+class _SettingsSheet extends StatefulWidget {
+  final BreathSettings initial;
+  const _SettingsSheet({required this.initial});
+
+  @override
+  State<_SettingsSheet> createState() => _SettingsSheetState();
+}
+
+enum _Mode { preset, custom }
+
+class _SettingsSheetState extends State<_SettingsSheet> {
+  _Mode mode = _Mode.preset;
+  int preset = 1; // 0=beginner,1=balanced,2=advanced
+  late BreathSettings custom;
+
+  @override
+  void initState() {
+    super.initState();
+    final s = widget.initial;
+    if (_equals(s, BreathSettings.beginner)) { preset = 0; mode = _Mode.preset; }
+    else if (_equals(s, BreathSettings.balanced)) { preset = 1; mode = _Mode.preset; }
+    else if (_equals(s, BreathSettings.advanced)) { preset = 2; mode = _Mode.preset; }
+    else { mode = _Mode.custom; }
+    custom = s;
+  }
+
+  bool _equals(BreathSettings a, BreathSettings b) =>
+      a.inh == b.inh && a.hold == b.hold && a.ex == b.ex && a.rest == b.rest;
+
+  BreathSettings _selected() {
+    if (mode == _Mode.custom) return custom;
+    return [BreathSettings.beginner, BreathSettings.balanced, BreathSettings.advanced][preset];
+    }
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = CupertinoDynamicColor.resolve(T.ink, context);
+    return CupertinoActionSheet(
+      title: Text('Breathing Settings', style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
+      message: Column(
+        children: [
+          const SizedBox(height: 8),
+          CupertinoSegmentedControl<int>(
+            groupValue: mode == _Mode.preset ? preset : -1,
+            onValueChanged: (v) => setState(() { mode = _Mode.preset; preset = v; }),
+            children: const {
+              0: Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Beginner')),
+              1: Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Balanced')),
+              2: Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Advanced')),
+            },
+          ),
+          const SizedBox(height: 12),
+          CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            onPressed: () => setState(() => mode = _Mode.custom),
+            child: const Text('Or set custom times'),
+          ),
+          const SizedBox(height: 8),
+          if (mode == _Mode.custom) _CustomPickers(
+            value: custom,
+            onChanged: (s) => setState(() => custom = s),
+          ),
+        ],
+      ),
+      actions: [
+        CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(_selected()),
+          isDefaultAction: true,
+          child: const Text('Save'),
+        ),
+      ],
+      cancelButton: CupertinoActionSheetAction(
+        onPressed: () => Navigator.pop(context),
+        isDestructiveAction: false,
+        child: const Text('Cancel'),
+      ),
+    );
+  }
+}
+
+class _CustomPickers extends StatelessWidget {
+  final BreathSettings value;
+  final ValueChanged<BreathSettings> onChanged;
+  const _CustomPickers({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget col(String label, int current, ValueChanged<int> onSec) {
+      return Expanded(
+        child: Column(
+          children: [
+            Text(label, style: TextStyle(color: CupertinoDynamicColor.resolve(T.ink, context))),
+            SizedBox(
+              height: 120,
+              child: CupertinoPicker(
+                itemExtent: 32,
+                scrollController: FixedExtentScrollController(initialItem: current - 1),
+                onSelectedItemChanged: (i) => onSec(i + 1),
+                children: List.generate(20, (i) => Center(child: Text('${i + 1}s'))),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        col('Inhale', value.inh, (s) => onChanged(value.copyWith(inh: s))),
+        col('Hold',   value.hold, (s) => onChanged(value.copyWith(hold: s))),
+        col('Exhale', value.ex,   (s) => onChanged(value.copyWith(ex: s))),
+        col('Rest',   value.rest, (s) => onChanged(value.copyWith(rest: s))),
+      ],
+    );
+  }
+}
+
+/// ================= Progress page (unchanged behavior) ===========
 class ProgressPage extends StatefulWidget {
   const ProgressPage({super.key});
   @override
@@ -433,16 +506,12 @@ class _ProgressPageState extends State<ProgressPage> {
   Map<String, int> _week = {};
 
   @override
-  void initState() {
-    super.initState();
-    _load();
-  }
+  void initState() { super.initState(); _load(); }
 
   Future<void> _load() async {
     _prefs = await SharedPreferences.getInstance();
     for (final s in _prefs.getStringList('week') ?? []) {
-      final parts = s.split('|');
-      if (parts.length == 2) _week[parts[0]] = int.tryParse(parts[1]) ?? 0;
+      final p = s.split('|'); if (p.length == 2) _week[p[0]] = int.tryParse(p[1]) ?? 0;
     }
     setState(() {});
   }
@@ -462,8 +531,7 @@ class _ProgressPageState extends State<ProgressPage> {
     return CupertinoPageScaffold(
       backgroundColor: bg,
       navigationBar: CupertinoNavigationBar(
-        middle: Text('Progress',
-            style: TextStyle(color: ink, fontSize: 22, fontWeight: FontWeight.w600)),
+        middle: Text('Progress', style: TextStyle(color: ink, fontSize: 22, fontWeight: FontWeight.w600)),
         border: null,
         backgroundColor: CupertinoDynamicColor.resolve(T.surface, context),
       ),
@@ -476,8 +544,7 @@ class _ProgressPageState extends State<ProgressPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Weekly Sessions',
-                      style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w600)),
+                  Text('Weekly Sessions', style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -489,26 +556,21 @@ class _ProgressPageState extends State<ProgressPage> {
                           AnimatedContainer(
                             duration: const Duration(milliseconds: 280),
                             curve: Curves.easeInOutCubic,
-                            width: 20,
-                            height: h,
+                            width: 20, height: h,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(8),
                               color: T.ring(context, v == 0 ? .10 : .28),
-                              boxShadow: v == 0
-                                  ? null
-                                  : const [BoxShadow(color: Color(0x22000000), blurRadius: 10, offset: Offset(0, 6))],
+                              boxShadow: v == 0 ? null : const [BoxShadow(color: Color(0x22000000), blurRadius: 10, offset: Offset(0, 6))],
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Text(_dayLetter(e.$1),
-                              style: TextStyle(color: ink.withOpacity(.55))),
+                          Text(_dayLetter(e.$1), style: TextStyle(color: ink.withOpacity(.55))),
                         ],
                       );
                     }).toList(),
                   ),
                   const SizedBox(height: 14),
-                  Text("Today: ${_today()} session(s)",
-                      style: TextStyle(color: ink.withOpacity(.65))),
+                  Text('Today: ${_today()} session(s)', style: TextStyle(color: ink.withOpacity(.65))),
                 ],
               ),
             ),
