@@ -1,20 +1,3 @@
-workflows:
-  android_aab:
-    name: MindBreath Android → AAB artifact
-    max_build_duration: 60
-    environment:
-      flutter: stable
-    scripts:
-      - name: Flutter clean & pub get
-        script: |
-          flutter clean
-          flutter pub get
-      - name: Build Android App Bundle (release)
-        script: |
-          flutter build appbundle --release
-    artifacts:
-      - build/app/outputs/bundle/release/app-release.aab
-
   ios_adhoc_sign:
     name: iOS Ad Hoc – signed IPA
     max_build_duration: 60
@@ -29,21 +12,15 @@ workflows:
       - name: Get dependencies
         script: flutter pub get
 
-      # ⬇️ THIS step now forces manual signing and then applies the uploaded profiles/cert
       - name: Add signing assets & select profiles
         script: |
           keychain add-certificates
-          # Force Manual signing for all targets/configs in the Xcode project
-          xcode-project build-settings set CODE_SIGN_STYLE=Manual
-          # Show for verification (non-fatal if it can't print)
-          xcode-project build-settings print CODE_SIGN_STYLE || true
-          # Apply the uploaded provisioning profiles/certificates
-          xcode-project use-profiles
 
-      # ⬇️ Optional “belt-and-suspenders” to make sure automatic signing is OFF
-      - name: "Extra safety: disable automatic signing"
-        script: |
-          xcode-project automatic-signing disable
+          # Force manual signing for all targets
+          xcode-project build-settings set CODE_SIGN_STYLE=Manual
+
+          # Apply the uploaded provisioning profile
+          xcode-project use-profiles
 
       - name: Create export options for Ad Hoc
         script: |
