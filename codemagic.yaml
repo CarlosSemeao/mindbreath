@@ -41,7 +41,7 @@ workflows:
           xcode-project use-profiles
 
       # ⬇️ Optional “belt-and-suspenders” to make sure automatic signing is OFF
-      - name: Extra safety: disable automatic signing
+      - name: "Extra safety: disable automatic signing"
         script: |
           xcode-project automatic-signing disable
 
