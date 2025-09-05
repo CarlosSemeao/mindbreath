@@ -2,20 +2,21 @@ workflows:
   ios_manual_sign:
     name: iOS Manual Sign & IPA
     max_build_duration: 60
+
     environment:
       flutter: stable
       xcode: latest
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
-        P12_PASSWORD: Encrypted(put-this-in-Env-Vars-UI-as-Secret)
+        # Do NOT put your P12 password here; add it in Codemagic → Environment variables as Secret: P12_PASSWORD
 
-  code_signing:
+    code_signing:
       certificates:
-        - certificate: MindBreathDistribution     # must match your .p12 reference name in Codemagic
+        - certificate: MindBreathDistribution.p12   # must match the name shown in Codemagic UI
           password: $P12_PASSWORD
       provisioning_profiles:
-        - MB_AppStore_Profile                     # must match the profile reference name in Codemagic
+        - MB_AppStore_Profile                       # must match the profile name shown in Codemagic UI
 
     scripts:
       - name: Get dependencies
