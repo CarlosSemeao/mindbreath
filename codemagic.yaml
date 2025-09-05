@@ -28,12 +28,13 @@ workflows:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
 
-code_signing:
+    code_signing:
       certificates:
         - certificate: MindBreathDistribution.p12
-          password: $P12_PASSWORD   # must be set in Codemagic Environment variables (Secret)
+          password: $P12_PASSWORD        # set this in Codemagic → Environment variables (Secret)
       provisioning_profiles:
         - MindBreath_AppStore.mobileprovision
+
     scripts:
       - name: Get dependencies
         script: flutter pub get
