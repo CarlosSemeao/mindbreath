@@ -28,7 +28,7 @@ workflows:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
 
-    code_signing:
+code_signing:
       certificates:
         - certificate: MindBreathDistribution.p12
           password: $P12_PASSWORD   # must be set in Codemagic Environment variables (Secret)
