@@ -1,4 +1,4 @@
-package com.example.mindbreath
+package com.carlostechops.mindbreath
 
 import io.flutter.embedding.android.FlutterActivity
 
