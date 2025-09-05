@@ -1,21 +1,25 @@
+# ---------- TOP-LEVEL CODE SIGNING (not inside a workflow) ----------
+code_signing:
+  ios_signing:
+    certificates:
+      - certificate: MindBreathDistribution       # EXACT name from Teams → iOS certificates
+        password: $P12_PASSWORD                   # add this as a Secret in Env variables UI
+    provisioning_profiles:
+      - MB_AppStore_Profile                       # EXACT name from Teams → iOS provisioning profiles
+
+# -------------------- WORKFLOWS --------------------
 workflows:
   ios_manual_sign:
     name: iOS Manual Sign & IPA
     max_build_duration: 60
+
     environment:
       flutter: stable
       xcode: latest
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
-        P12_PASSWORD: $P12_PASSWORD   # set this in Codemagic Env Vars (Secret)
-
-    code_signing:
-      certificates:
-        - certificate: MindBreathDistribution   # must match the cert name in Codemagic UI
-          password: $P12_PASSWORD
-      provisioning_profiles:
-        - MB_AppStore_Profile                   # must match the profile name in Codemagic UI
+        # Do NOT put the actual password here; only reference $P12_PASSWORD above.
 
     scripts:
       - name: Get dependencies
