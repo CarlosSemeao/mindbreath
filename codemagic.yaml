@@ -29,10 +29,21 @@ workflows:
       - name: Get dependencies
         script: flutter pub get
 
+      # ⬇️ THIS step now forces manual signing and then applies the uploaded profiles/cert
       - name: Add signing assets & select profiles
         script: |
           keychain add-certificates
+          # Force Manual signing for all targets/configs in the Xcode project
+          xcode-project build-settings set CODE_SIGN_STYLE=Manual
+          # Show for verification (non-fatal if it can't print)
+          xcode-project build-settings print CODE_SIGN_STYLE || true
+          # Apply the uploaded provisioning profiles/certificates
           xcode-project use-profiles
+
+      # ⬇️ Optional “belt-and-suspenders” to make sure automatic signing is OFF
+      - name: Extra safety: disable automatic signing
+        script: |
+          xcode-project automatic-signing disable
 
       - name: Create export options for Ad Hoc
         script: |
