@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,68 +10,90 @@ void main() {
   runApp(const MindBreathApp());
 }
 
-/// ---------- Palette (single teal hue, minimalist) ----------
-class MB {
-  // Background (airy, neutral)
-  static const bgTop = Color(0xFFF6FBFA);
-  static const bgBottom = Color(0xFFFFFFFF);
+/// ===== Theme (teal palette, light/dark aware) ===================
+class T {
+  // app primary (controls, filled button)
+  static const primary = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFF14B8A6),      // teal 500
+    darkColor: Color(0xFF2DD4BF),  // teal 400 (brighter on dark)
+  );
 
-  // Teal family
-  static const primary = Color(0xFF0FB59C);       // core teal
-  static const primaryDark = Color(0xFF0A8D79);   // deeper tone
-  static const primaryLight = Color(0xFF9FE4D8);  // soft glow
-  static const primarySoft = Color(0xFFE8F7F4);   // soft surface
+  // background
+  static const bg = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFFF6FBFA),      // very light mint
+    darkColor: Color(0xFF0C1413),  // near-black teal
+  );
 
-  // Text
-  static const label = Color(0xFF0F1222);
-  static const labelSub = Color(0x990F1222);
+  // ink
+  static const ink = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFF0F172A),      // slate-900
+    darkColor: Color(0xFFE2E8F0),  // slate-200
+  );
 
-  // Surfaces
-  static const card = Color(0xCCFFFFFF); // translucent white
-  static const stroke = Color(0x220F1222);
+  // subtle surface for the top chip
+  static const surface = CupertinoDynamicColor.withBrightness(
+    color: Color(0xAAFFFFFF),
+    darkColor: Color(0x3314B8A6),
+  );
+
+  // ring fills (same hue, different alphas)
+  static Color ring(BuildContext c, double a) =>
+      CupertinoDynamicColor.resolve(primary, c).withOpacity(a);
 }
 
 class MindBreathApp extends StatelessWidget {
   const MindBreathApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return const CupertinoApp(
+    return CupertinoApp(
       debugShowCheckedModeBanner: false,
-      home: RootTabs(),
+      theme: const CupertinoThemeData(
+        primaryColor: T.primary, // <- sets filled button & switches
+        barBackgroundColor: T.surface,
+      ),
+      home: const RootTabs(),
     );
   }
 }
 
+/// ================= Root with 2 tabs =============================
 class RootTabs extends StatelessWidget {
   const RootTabs({super.key});
+
   @override
   Widget build(BuildContext context) {
     return CupertinoTabScaffold(
-      // not const: avoids const-assert at build
+      // DO NOT use const here (breaks assert in CupertinoTabBar)
       tabBar: CupertinoTabBar(
-        backgroundColor: const Color(0xF0FFFFFF),
-        activeColor: MB.primary,
-        inactiveColor: MB.labelSub,
+        backgroundColor:
+            CupertinoDynamicColor.resolve(T.surface, context),
         items: const [
-          BottomNavigationBarItem(icon: Icon(CupertinoIcons.wind), label: 'Breathe'),
-          BottomNavigationBarItem(icon: Icon(CupertinoIcons.chart_bar_alt_fill), label: 'Progress'),
+          BottomNavigationBarItem(
+              icon: Icon(CupertinoIcons.circle), label: 'Breathe'),
+          BottomNavigationBarItem(
+              icon: Icon(CupertinoIcons.chart_bar_alt_fill), label: 'Progress'),
         ],
       ),
-      tabBuilder: (context, index) => index == 0 ? const BreathePage() : const ProgressPage(),
+      tabBuilder: (context, index) {
+        return CupertinoTabView(
+          builder: (_) => index == 0 ? const BreathePage() : const ProgressPage(),
+        );
+      },
     );
   }
 }
 
-/// ---------------------- Breathing engine ----------------------
+/// ================= Breathe page (minimal, centered) =============
 enum Phase { inhale, hold, exhale, rest }
 
 class BreathConfig {
   final Duration inhale, hold, exhale, rest;
   const BreathConfig({
-    this.inhale = const Duration(seconds: 4),
-    this.hold   = const Duration(seconds: 4),
-    this.exhale = const Duration(seconds: 6),
-    this.rest   = const Duration(seconds: 2),
+    this.inhale = const Duration(seconds: 5),
+    this.hold   = const Duration(seconds: 5),
+    this.exhale = const Duration(seconds: 8),
+    this.rest   = const Duration(seconds: 3),
   });
 }
 
@@ -81,14 +105,16 @@ class BreathePage extends StatefulWidget {
 
 class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin {
   final _cfg = const BreathConfig();
-  late final AnimationController _scale;
+
+  late final AnimationController _scale; // breathing size
+  late final AnimationController _float; // tiny vertical float
   Phase _phase = Phase.rest;
   Timer? _timer;
   bool _running = false;
-  bool _hapticsOn = true;
+  bool _haptics = true;
 
   late SharedPreferences _prefs;
-  Map<String, int> _weekCounts = {};
+  Map<String, int> _week = {};
 
   @override
   void initState() {
@@ -96,40 +122,41 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
     _scale = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-      lowerBound: 0.75,
-      upperBound: 1.0,
+      lowerBound: 0.70,
+      upperBound: 1.00,
       value: 0.85,
     );
+    _float = AnimationController(vsync: this, duration: const Duration(seconds: 8))
+      ..repeat();
+
     _loadPrefs();
   }
 
   Future<void> _loadPrefs() async {
     _prefs = await SharedPreferences.getInstance();
-    final raw = _prefs.getStringList('week') ?? [];
-    for (final s in raw) {
+    for (final s in _prefs.getStringList('week') ?? []) {
       final parts = s.split('|');
-      if (parts.length == 2) _weekCounts[parts[0]] = int.tryParse(parts[1]) ?? 0;
+      if (parts.length == 2) _week[parts[0]] = int.tryParse(parts[1]) ?? 0;
     }
     setState(() {});
   }
 
-  Future<void> _saveTodayCompletion() async {
+  Future<void> _saveToday() async {
     final t = DateTime.now();
     final key = "${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}";
-    _weekCounts[key] = (_weekCounts[key] ?? 0) + 1;
+    _week[key] = (_week[key] ?? 0) + 1;
 
     final cutoff = t.subtract(const Duration(days: 7));
-    _weekCounts.removeWhere((k, _) =>
+    _week.removeWhere((k, _) =>
         DateTime.parse(k).isBefore(DateTime(cutoff.year, cutoff.month, cutoff.day)));
 
-    final list = _weekCounts.entries.map((e) => "${e.key}|${e.value}").toList();
-    await _prefs.setStringList('week', list);
+    await _prefs.setStringList('week', _week.entries.map((e) => "${e.key}|${e.value}").toList());
   }
 
   void _start() {
     if (_running) return;
     setState(() => _running = true);
-    _runPhase(Phase.inhale);
+    _go(Phase.inhale);
   }
 
   void _stop() {
@@ -142,47 +169,50 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
     });
   }
 
-  void _runPhase(Phase next) {
+  void _go(Phase p) {
     _timer?.cancel();
-    setState(() => _phase = next);
-    _haptic(next);
+    setState(() => _phase = p);
+    if (_haptics) {
+      switch (p) {
+        case Phase.inhale:
+        case Phase.exhale:
+        case Phase.rest:
+          HapticFeedback.selectionClick();
+          break;
+        case Phase.hold:
+          HapticFeedback.lightImpact();
+          break;
+      }
+    }
 
-    switch (next) {
+    switch (p) {
       case Phase.inhale:
-        _scale.animateTo(1.0, duration: _cfg.inhale, curve: Curves.easeInOutCubic);
-        _timer = Timer(_cfg.inhale, () => _runPhase(Phase.hold));
+        _scale.animateTo(1.00, duration: _cfg.inhale, curve: Curves.easeInOutCubic);
+        _timer = Timer(_cfg.inhale, () => _go(Phase.hold));
         break;
       case Phase.hold:
-        _timer = Timer(_cfg.hold, () => _runPhase(Phase.exhale));
+        _timer = Timer(_cfg.hold, () => _go(Phase.exhale));
         break;
       case Phase.exhale:
-        _scale.animateTo(0.75, duration: _cfg.exhale, curve: Curves.easeInOutCubic);
-        _timer = Timer(_cfg.exhale, () => _runPhase(Phase.rest));
+        _scale.animateTo(0.70, duration: _cfg.exhale, curve: Curves.easeInOutCubic);
+        _timer = Timer(_cfg.exhale, () => _go(Phase.rest));
         break;
       case Phase.rest:
         _timer = Timer(_cfg.rest, () async {
-          await _saveTodayCompletion();
-          if (_hapticsOn) HapticFeedback.mediumImpact();
-          if (_running) _runPhase(Phase.inhale);
+          await _saveToday();                   // count session here
+          if (_haptics) HapticFeedback.mediumImpact();
+          if (_running) _go(Phase.inhale);
         });
         break;
     }
   }
 
-  void _haptic(Phase p) {
-    if (!_hapticsOn) return;
-    switch (p) {
-      case Phase.inhale:
-      case Phase.exhale:
-        HapticFeedback.selectionClick();
-        break;
-      case Phase.hold:
-        HapticFeedback.lightImpact();
-        break;
-      case Phase.rest:
-        HapticFeedback.selectionClick();
-        break;
-    }
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _scale.dispose();
+    _float.dispose();
+    super.dispose();
   }
 
   String get _label => switch (_phase) {
@@ -193,176 +223,205 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
       };
 
   @override
-  void dispose() {
-    _timer?.cancel();
-    _scale.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final bg = CupertinoDynamicColor.resolve(T.bg, context);
+    final ink = CupertinoDynamicColor.resolve(T.ink, context);
+
     return CupertinoPageScaffold(
-      backgroundColor: MB.bgBottom,
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('MindBreath', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
+      backgroundColor: bg,
+      navigationBar: CupertinoNavigationBar(
+        middle: Text('MindBreath',
+            style: TextStyle(color: ink, fontSize: 22, fontWeight: FontWeight.w600)),
         border: null,
-        backgroundColor: Color(0xF2FFFFFF),
+        backgroundColor: CupertinoDynamicColor.resolve(T.surface, context),
       ),
-      child: Stack(
-        children: [
-          // Gentle teal wash
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [MB.bgTop, MB.bgBottom],
-              ),
-            ),
-          ),
-
-          // Content
-          SafeArea(
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-
-                // Phase pill
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _Card(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(_label,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: MB.label,
-                            )),
-                        Row(
-                          children: [
-                            const Text('Haptics', style: TextStyle(color: MB.labelSub)),
-                            const SizedBox(width: 8),
-                            CupertinoSwitch(
-                              value: _hapticsOn,
-                              onChanged: (v) => setState(() => _hapticsOn = v),
-                              activeColor: MB.primary,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // CENTER AREA — globe is *perfectly centered* in the remaining space
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, bc) {
-                      // size globe by the tighter axis of this center area
-                      final maxDiameter = (bc.maxWidth < bc.maxHeight ? bc.maxWidth : bc.maxHeight) * 0.68;
-                      return Center(
-                        child: AnimatedBuilder(
-                          animation: _scale,
-                          builder: (context, _) => _BreathGlobe(diameter: maxDiameter * _scale.value),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                // Controls
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      child: SafeArea(
+        child: Column(
+          children: [
+            // small chip with current phase + haptics toggle
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: _Glass(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: CupertinoButton.filled(
-                          onPressed: _start,
-                          child: const Text('Start'),
+                      Text(_label, style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w600)),
+                      Row(children: [
+                        Text('Haptics', style: TextStyle(color: ink.withOpacity(.6))),
+                        const SizedBox(width: 8),
+                        CupertinoSwitch(
+                          value: _haptics,
+                          onChanged: (v) => setState(() => _haptics = v),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: CupertinoButton(
-                          onPressed: _stop,
-                          color: MB.primarySoft,
-                          child: const Text('Stop', style: TextStyle(color: MB.primary)),
-                        ),
-                      ),
+                      ]),
                     ],
                   ),
                 ),
-              ],
+              ),
+            ),
+
+            // Centered globe (takes remaining space)
+            Expanded(
+              child: AnimatedBuilder(
+                animation: Listenable.merge([_scale, _float]),
+                builder: (context, _) {
+                  // centered, with gentle float
+                  final w = MediaQuery.of(context).size.width;
+                  final base = w * 0.7;
+                  final s    = _scale.value;
+                  final dy   = math.sin(_float.value * 2 * math.pi) * 6; // px
+                  final d    = base * s;
+
+                  return Center(
+                    child: Transform.translate(
+                      offset: Offset(0, dy),
+                      child: SizedBox(
+                        width: d,
+                        height: d,
+                        child: _RingsGlobe(label: _label),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // Controls
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: CupertinoButton.filled(
+                      onPressed: _start,
+                      child: const Text('Start'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CupertinoButton(
+                      onPressed: _stop,
+                      color: CupertinoDynamicColor.resolve(T.primary, context).withOpacity(0.12),
+                      child: Text('Stop',
+                          style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Frosted minimal card
+class _Glass extends StatelessWidget {
+  final Widget child;
+  const _Glass({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: CupertinoDynamicColor.resolve(T.surface, context),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 18,
+                offset: Offset(0, 10),
+              )
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// Minimal concentric “globe” with soft depth
+class _RingsGlobe extends StatelessWidget {
+  final String label;
+  const _RingsGlobe({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final c1 = T.ring(context, .18);
+    final c2 = T.ring(context, .10);
+    final c3 = T.ring(context, .06);
+    final ink = CupertinoDynamicColor.resolve(T.ink, context);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // drop shadow for depth
+        Container(
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: Color(0x25000000), blurRadius: 38, spreadRadius: 2, offset: Offset(0, 18)),
+              BoxShadow(color: Color(0x12000000), blurRadius: 8, offset: Offset(0, 2)),
+            ],
+          ),
+        ),
+        // rings
+        CustomPaint(
+          painter: _RingsPainter(c1: c1, c2: c2, c3: c3),
+        ),
+        // center label
+        Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: ink.withOpacity(.85),
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              letterSpacing: .2,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-/// Minimal “floating globe” (single hue + soft shadows, no 3D)
-class _BreathGlobe extends StatelessWidget {
-  final double diameter;
-  const _BreathGlobe({required this.diameter});
+class _RingsPainter extends CustomPainter {
+  final Color c1, c2, c3;
+  _RingsPainter({required this.c1, required this.c2, required this.c3});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: diameter,
-      height: diameter,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        // gentle depth within the same hue
-        gradient: const RadialGradient(
-          center: Alignment(-0.2, -0.25),
-          radius: 0.95,
-          colors: [MB.primaryLight, MB.primaryDark],
-          stops: [0.0, 1.0],
-        ),
-        // symmetric shadows → no perceived horizontal offset
-        boxShadow: const [
-          BoxShadow(color: Color(0x22000000), blurRadius: 26, offset: Offset(0, 14)),
-          BoxShadow(color: Color(0x14000000), blurRadius: 8,  offset: Offset(0, 2)),
-        ],
-        border: Border.all(color: MB.stroke, width: 1),
-      ),
-      // subtle top highlight, centered and balanced
-      foregroundDecoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment(0.0, 0.3),
-          colors: [Color(0x33FFFFFF), Color(0x00FFFFFF)],
-        ),
-      ),
-    );
-  }
-}
+  void paint(Canvas canvas, Size size) {
+    final r = size.width / 2;
+    final center = Offset(r, r);
 
-/// Simple translucent card
-class _Card extends StatelessWidget {
-  final Widget child;
-  const _Card({required this.child});
+    // outer
+    final p1 = Paint()..color = c1..isAntiAlias = true;
+    canvas.drawCircle(center, r, p1);
+
+    // middle
+    final p2 = Paint()..color = c2..isAntiAlias = true;
+    canvas.drawCircle(center, r * .66, p2);
+
+    // inner
+    final p3 = Paint()..color = c3..isAntiAlias = true;
+    canvas.drawCircle(center, r * .36, p3);
+  }
+
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: MB.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: MB.stroke),
-        boxShadow: const [
-          BoxShadow(color: Color(0x14000000), blurRadius: 14, offset: Offset(0, 8)),
-        ],
-      ),
-      child: Padding(padding: const EdgeInsets.all(14), child: child),
-    );
-  }
+  bool shouldRepaint(covariant _RingsPainter old) =>
+      old.c1 != c1 || old.c2 != c2 || old.c3 != c3;
 }
 
-/// ---------------------- Progress (separate tab) ----------------------
+/// ================= Progress page (simple & working) =============
 class ProgressPage extends StatefulWidget {
   const ProgressPage({super.key});
   @override
@@ -381,8 +440,7 @@ class _ProgressPageState extends State<ProgressPage> {
 
   Future<void> _load() async {
     _prefs = await SharedPreferences.getInstance();
-    final raw = _prefs.getStringList('week') ?? [];
-    for (final s in raw) {
+    for (final s in _prefs.getStringList('week') ?? []) {
       final parts = s.split('|');
       if (parts.length == 2) _week[parts[0]] = int.tryParse(parts[1]) ?? 0;
     }
@@ -394,58 +452,63 @@ class _ProgressPageState extends State<ProgressPage> {
     final now = DateTime.now();
     final days = List.generate(7, (i) {
       final d = now.subtract(Duration(days: 6 - i));
-      final key = "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
-      return (d, _week[key] ?? 0);
+      final k = "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+      return (d, _week[k] ?? 0);
     });
 
+    final bg = CupertinoDynamicColor.resolve(T.bg, context);
+    final ink = CupertinoDynamicColor.resolve(T.ink, context);
+
     return CupertinoPageScaffold(
-      backgroundColor: MB.bgBottom,
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('Progress', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
+      backgroundColor: bg,
+      navigationBar: CupertinoNavigationBar(
+        middle: Text('Progress',
+            style: TextStyle(color: ink, fontSize: 22, fontWeight: FontWeight.w600)),
         border: null,
-        backgroundColor: Color(0xF2FFFFFF),
+        backgroundColor: CupertinoDynamicColor.resolve(T.surface, context),
       ),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
-          child: _Card(
+          child: _Glass(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Weekly Sessions',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: MB.label)),
+                  Text('Weekly Sessions',
+                      style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: days.map((e) {
-                      final int v = e.$2;
+                      final v = e.$2;
                       final h = (v == 0) ? 18.0 : (18 + (v.clamp(0, 6) * 12)).toDouble();
                       return Column(
                         children: [
                           AnimatedContainer(
-                            duration: const Duration(milliseconds: 250),
+                            duration: const Duration(milliseconds: 280),
                             curve: Curves.easeInOutCubic,
-                            width: 22,
+                            width: 20,
                             height: h,
                             decoration: BoxDecoration(
-                              color: v == 0 ? MB.primarySoft : MB.primary,
                               borderRadius: BorderRadius.circular(8),
+                              color: T.ring(context, v == 0 ? .10 : .28),
                               boxShadow: v == 0
                                   ? null
                                   : const [BoxShadow(color: Color(0x22000000), blurRadius: 10, offset: Offset(0, 6))],
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(_dayLetter(e.$1), style: const TextStyle(color: MB.labelSub)),
+                          const SizedBox(height: 6),
+                          Text(_dayLetter(e.$1),
+                              style: TextStyle(color: ink.withOpacity(.55))),
                         ],
                       );
                     }).toList(),
                   ),
                   const SizedBox(height: 14),
-                  Text('Today: ${_todayCount()} session(s)',
-                      style: const TextStyle(color: MB.labelSub)),
+                  Text("Today: ${_today()} session(s)",
+                      style: TextStyle(color: ink.withOpacity(.65))),
                 ],
               ),
             ),
@@ -455,10 +518,10 @@ class _ProgressPageState extends State<ProgressPage> {
     );
   }
 
-  int _todayCount() {
+  int _today() {
     final t = DateTime.now();
-    final key = "${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}";
-    return _week[key] ?? 0;
+    final k = "${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}";
+    return _week[k] ?? 0;
   }
 
   static String _dayLetter(DateTime d) => ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.weekday % 7];
