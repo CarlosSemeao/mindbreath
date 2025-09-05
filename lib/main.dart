@@ -8,24 +8,25 @@ void main() {
   runApp(const MindBreathApp());
 }
 
-/// ---------- Palette (single hue, minimalist) ----------
+/// ---------- Palette (single teal hue, minimalist) ----------
 class MB {
-  // Background (very light, airy)
-  static const bgTop = Color(0xFFF7FAFF);
+  // Background (airy, neutral)
+  static const bgTop = Color(0xFFF6FBFA);
   static const bgBottom = Color(0xFFFFFFFF);
 
-  // Primary hue family (blue → soft variants)
-  static const primary = Color(0xFF4169E1);     // royal / calm
-  static const primaryLight = Color(0xFF8FA7F2);
-  static const primarySoft = Color(0xFFE8EEFD);
+  // Teal family
+  static const primary = Color(0xFF0FB59C);       // core teal
+  static const primaryDark = Color(0xFF0A8D79);   // deeper tone
+  static const primaryLight = Color(0xFF9FE4D8);  // soft glow
+  static const primarySoft = Color(0xFFE8F7F4);   // soft surface
 
   // Text
   static const label = Color(0xFF0F1222);
   static const labelSub = Color(0x990F1222);
 
   // Surfaces
-  static const card = Color(0xB3FFFFFF); // translucent white
-  static const stroke = Color(0x33_0F1222);
+  static const card = Color(0xCCFFFFFF); // translucent white
+  static const stroke = Color(0x220F1222);
 }
 
 class MindBreathApp extends StatelessWidget {
@@ -44,7 +45,7 @@ class RootTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CupertinoTabScaffold(
-      // IMPORTANT: not const (avoids const-assert issue at build time)
+      // not const: avoids const-assert at build
       tabBar: CupertinoTabBar(
         backgroundColor: const Color(0xF0FFFFFF),
         activeColor: MB.primary,
@@ -54,14 +55,7 @@ class RootTabs extends StatelessWidget {
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.chart_bar_alt_fill), label: 'Progress'),
         ],
       ),
-      tabBuilder: (context, index) {
-        switch (index) {
-          case 0:
-            return const BreathePage();
-          default:
-            return const ProgressPage();
-        }
-      },
+      tabBuilder: (context, index) => index == 0 ? const BreathePage() : const ProgressPage(),
     );
   }
 }
@@ -87,7 +81,7 @@ class BreathePage extends StatefulWidget {
 
 class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin {
   final _cfg = const BreathConfig();
-  late final AnimationController _scale; // scales the globe
+  late final AnimationController _scale;
   Phase _phase = Phase.rest;
   Timer? _timer;
   bool _running = false;
@@ -114,9 +108,7 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
     final raw = _prefs.getStringList('week') ?? [];
     for (final s in raw) {
       final parts = s.split('|');
-      if (parts.length == 2) {
-        _weekCounts[parts[0]] = int.tryParse(parts[1]) ?? 0;
-      }
+      if (parts.length == 2) _weekCounts[parts[0]] = int.tryParse(parts[1]) ?? 0;
     }
     setState(() {});
   }
@@ -218,7 +210,7 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
       ),
       child: Stack(
         children: [
-          // Subtle vertical wash of the same hue
+          // Gentle teal wash
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -235,7 +227,7 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
               children: [
                 const SizedBox(height: 12),
 
-                // Minimal pill showing the current phase + haptics toggle
+                // Phase pill
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _Card(
@@ -264,20 +256,21 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
                   ),
                 ),
 
-                // CENTERED breathing globe
-                const Spacer(),
-                Center(
-                  child: AnimatedBuilder(
-                    animation: _scale,
-                    builder: (context, _) {
-                      // Fixed base size + scale
-                      final base = MediaQuery.of(context).size.width * 0.64;
-                      final d = base * _scale.value;
-                      return _BreathGlobe(diameter: d);
+                // CENTER AREA — globe is *perfectly centered* in the remaining space
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, bc) {
+                      // size globe by the tighter axis of this center area
+                      final maxDiameter = (bc.maxWidth < bc.maxHeight ? bc.maxWidth : bc.maxHeight) * 0.68;
+                      return Center(
+                        child: AnimatedBuilder(
+                          animation: _scale,
+                          builder: (context, _) => _BreathGlobe(diameter: maxDiameter * _scale.value),
+                        ),
+                      );
                     },
                   ),
                 ),
-                const SizedBox(height: 28),
 
                 // Controls
                 Padding(
@@ -310,7 +303,7 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
   }
 }
 
-/// Minimal “floating globe” using one hue + soft shadows (no 3D shaders)
+/// Minimal “floating globe” (single hue + soft shadows, no 3D)
 class _BreathGlobe extends StatelessWidget {
   final double diameter;
   const _BreathGlobe({required this.diameter});
@@ -322,26 +315,26 @@ class _BreathGlobe extends StatelessWidget {
       height: diameter,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        // One-hue gradient for a gentle depth
+        // gentle depth within the same hue
         gradient: const RadialGradient(
           center: Alignment(-0.2, -0.25),
           radius: 0.95,
-          colors: [MB.primaryLight, MB.primary],
+          colors: [MB.primaryLight, MB.primaryDark],
           stops: [0.0, 1.0],
         ),
-        // Soft depth + lifted shadow
+        // symmetric shadows → no perceived horizontal offset
         boxShadow: const [
           BoxShadow(color: Color(0x22000000), blurRadius: 26, offset: Offset(0, 14)),
-          BoxShadow(color: Color(0x11000000), blurRadius: 6,  offset: Offset(0, 2)),
+          BoxShadow(color: Color(0x14000000), blurRadius: 8,  offset: Offset(0, 2)),
         ],
         border: Border.all(color: MB.stroke, width: 1),
       ),
-      // subtle inner highlight to suggest glass, but still flat/minimal
+      // subtle top highlight, centered and balanced
       foregroundDecoration: const BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: Alignment.topCenter,
+          end: Alignment(0.0, 0.3),
           colors: [Color(0x33FFFFFF), Color(0x00FFFFFF)],
         ),
       ),
