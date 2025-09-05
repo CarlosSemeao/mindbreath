@@ -1,5 +1,4 @@
 workflows:
-
   android_aab:
     name: MindBreath Android → AAB artifact
     max_build_duration: 60
@@ -22,22 +21,14 @@ workflows:
   ios_manual_sign:
     name: iOS Manual Sign & IPA
     max_build_duration: 60
-
     environment:
       flutter: stable
       xcode: latest
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
-
-    # uses the cert/profile you uploaded in Settings → Code signing identities
-    code_signing:
-      ios_signing:
-        certificates:
-          - certificate: MindBreath_DistCert         # <-- this must match the name shown in Codemagic UI
-            password: $P12_PASSWORD                  # <-- add this env var in “Environment variables”
-        provisioning_profiles:
-          - MindBreath_AppStore                      # <-- must match the profile name in Codemagic UI
+        # used to decrypt your .p12
+        P12_PASSWORD: Encrypted(put-this-in-Env-Vars-UI-as-Secret)
 
     scripts:
       - name: Get dependencies
@@ -73,12 +64,3 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/ipa/*.dSYM.zip
-
-    # OPTIONAL: auto-upload to TestFlight (enable after you see the IPA appear)
-    #publishing:
-    #  app_store_connect:
-    #    api_key: $APP_STORE_CONNECT_PRIVATE_KEY       # or pick the key in the UI instead of YAML
-    #    key_id: 2266TQXHB5
-    #    issuer_id: 270e58f8-0972-4303-9767-267df46789b6
-    #    submit_to_testflight: true
-    #    beta_groups: []  # leave empty for internal testing
