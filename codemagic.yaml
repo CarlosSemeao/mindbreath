@@ -1,4 +1,5 @@
 workflows:
+
   android_aab:
     name: MindBreath Android → AAB artifact
     max_build_duration: 60
@@ -18,10 +19,7 @@ workflows:
     artifacts:
       - build/app/outputs/bundle/release/app-release.aab
 
-
-
-workflows:
-  ios-manual-sign:
+  ios_manual_sign:
     name: iOS Manual Sign & IPA
     max_build_duration: 60
 
@@ -32,24 +30,25 @@ workflows:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
 
+    # uses the cert/profile you uploaded in Settings → Code signing identities
     code_signing:
       ios_signing:
         certificates:
-          - certificate: MindBreath_DistCert
-            password: $P12_PASSWORD
+          - certificate: MindBreath_DistCert         # <-- this must match the name shown in Codemagic UI
+            password: $P12_PASSWORD                  # <-- add this env var in “Environment variables”
         provisioning_profiles:
-          - MindBreath_AppStoreProfile
+          - MindBreath_AppStore                      # <-- must match the profile name in Codemagic UI
 
     scripts:
       - name: Get dependencies
         script: flutter pub get
 
-      - name: Apply signing assets
+      - name: Apply signing assets (keychain + profiles)
         script: |
           keychain add-certificates
           xcode-project use-profiles
 
-      - name: Prepare export options
+      - name: Create export options for App Store
         script: |
           cat > export_options.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
@@ -68,9 +67,18 @@ workflows:
           </plist>
           EOF
 
-      - name: Build IPA
+      - name: Build signed IPA (Release)
         script: flutter build ipa --release --export-options-plist=export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/ipa/*.dSYM.zip
+
+    # OPTIONAL: auto-upload to TestFlight (enable after you see the IPA appear)
+    #publishing:
+    #  app_store_connect:
+    #    api_key: $APP_STORE_CONNECT_PRIVATE_KEY       # or pick the key in the UI instead of YAML
+    #    key_id: 2266TQXHB5
+    #    issuer_id: 270e58f8-0972-4303-9767-267df46789b6
+    #    submit_to_testflight: true
+    #    beta_groups: []  # leave empty for internal testing
