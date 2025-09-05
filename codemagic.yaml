@@ -10,14 +10,6 @@ workflows:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
 
-    # Tell Codemagic which signing items to mount on the build machine
-    code_signing:
-      certificates:
-        - certificate: MindBreathDistribution   # must match the display name in Codemagic
-          password: $P12_PASSWORD
-      provisioning_profiles:
-        - MB_AdHoc_Profile                     # must match the profile name in Codemagic
-
     scripts:
       - name: Get dependencies
         script: flutter pub get
