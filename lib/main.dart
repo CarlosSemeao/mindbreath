@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/material.dart' show Colors; // <-- added
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -28,9 +29,9 @@ class RootTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CupertinoTabScaffold(
-      tabBar: const CupertinoTabBar(
-        backgroundColor: Color(0xF0FFFFFF),
-        items: [
+      tabBar: CupertinoTabBar( // <-- removed const
+        backgroundColor: const Color(0xF0FFFFFF),
+        items: const [
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.sun_max), label: 'Breathe'),
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.chart_bar_alt_fill), label: 'Progress'),
         ],
