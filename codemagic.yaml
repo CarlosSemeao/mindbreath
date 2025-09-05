@@ -1,52 +1,53 @@
-ios_manual_sign:
-  name: iOS Manual Sign & IPA
-  max_build_duration: 60
-  environment:
-    flutter: stable
-    xcode: latest
-    vars:
-      BUNDLE_ID: com.carlostechops.mindbreath
-      TEAM_ID: LRT5QA283X
-      P12_PASSWORD: Encrypted(put-this-in-Env-Vars-UI-as-Secret)
+workflows:
+  ios_manual_sign:
+    name: iOS Manual Sign & IPA
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      vars:
+        BUNDLE_ID: com.carlostechops.mindbreath
+        TEAM_ID: LRT5QA283X
+        P12_PASSWORD: Encrypted(put-this-in-Env-Vars-UI-as-Secret)
 
-  code_signing:
-    certificates:
-      - certificate: MindBreathDistribution     # must match your .p12 reference name in Codemagic
-        password: $P12_PASSWORD
-    provisioning_profiles:
-      - MB_AppStore_Profile                     # must match the profile reference name in Codemagic
+    code_signing:
+      certificates:
+        - certificate: MindBreathDistribution     # must match your .p12 reference name in Codemagic
+          password: $P12_PASSWORD
+      provisioning_profiles:
+        - MB_AppStore_Profile                     # must match the profile reference name in Codemagic
 
-  scripts:
-    - name: Get dependencies
-      script: flutter pub get
+    scripts:
+      - name: Get dependencies
+        script: flutter pub get
 
-    - name: Apply signing assets (keychain + profiles)
-      script: |
-        keychain add-certificates
-        xcode-project use-profiles
+      - name: Apply signing assets (keychain + profiles)
+        script: |
+          keychain add-certificates
+          xcode-project use-profiles
 
-    - name: Create export options for App Store
-      script: |
-        cat > export_options.plist <<'EOF'
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-          <key>method</key><string>app-store</string>
-          <key>signingStyle</key><string>manual</string>
-          <key>teamID</key><string>LRT5QA283X</string>
-          <key>provisioningProfiles</key>
+      - name: Create export options for App Store
+        script: |
+          cat > export_options.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
           <dict>
-            <key>com.carlostechops.mindbreath</key><string>MB_AppStore_Profile</string>
+            <key>method</key><string>app-store</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>LRT5QA283X</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.carlostechops.mindbreath</key><string>MB_AppStore_Profile</string>
+            </dict>
+            <key>compileBitcode</key><false/>
           </dict>
-          <key>compileBitcode</key><false/>
-        </dict>
-        </plist>
-        EOF
+          </plist>
+          EOF
 
-    - name: Build signed IPA (Release)
-      script: flutter build ipa --release --export-options-plist=export_options.plist
+      - name: Build signed IPA (Release)
+        script: flutter build ipa --release --export-options-plist=export_options.plist
 
-  artifacts:
-    - build/ios/ipa/*.ipa
-    - build/ios/ipa/*.dSYM.zip
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/ipa/*.dSYM.zip
