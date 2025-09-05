@@ -18,26 +18,59 @@ workflows:
     artifacts:
       - build/app/outputs/bundle/release/app-release.aab
 
-        ios_testflight:
-    name: MindBreath iOS → TestFlight
+
+
+workflows:
+  ios-manual-sign:
+    name: iOS Manual Sign & IPA
     max_build_duration: 60
+
     environment:
       flutter: stable
       xcode: latest
+      vars:
+        BUNDLE_ID: com.carlostechops.mindbreath
+        TEAM_ID: LRT5QA283X
+
+    code_signing:
+      ios_signing:
+        certificates:
+          - certificate: MindBreath_DistCert
+            password: $P12_PASSWORD
+        provisioning_profiles:
+          - MindBreath_AppStoreProfile
+
     scripts:
-      - name: Flutter clean & pub get
+      - name: Get dependencies
+        script: flutter pub get
+
+      - name: Apply signing assets
         script: |
-          flutter clean
-          flutter pub get
-      - name: Build IPA (release)
+          keychain add-certificates
+          xcode-project use-profiles
+
+      - name: Prepare export options
         script: |
-          flutter build ipa --release --no-tree-shake-icons
+          cat > export_options.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>LRT5QA283X</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.carlostechops.mindbreath</key><string>MindBreath_AppStore</string>
+            </dict>
+            <key>compileBitcode</key><false/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Build IPA
+        script: flutter build ipa --release --export-options-plist=export_options.plist
+
     artifacts:
       - build/ios/ipa/*.ipa
-    publishing:
-      app_store_connect:
-        auth: integration
-        integration: asc_mindbreath   # <-- the integration name you’ll create in step 2
-        submit_to_testflight: true
-        beta_groups:
-          - External Testers
+      - build/ios/ipa/*.dSYM.zip
