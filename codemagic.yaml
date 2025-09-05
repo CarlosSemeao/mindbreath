@@ -1,0 +1,24 @@
+workflows:
+  ios_testflight:
+    name: MindBreath iOS → TestFlight
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+    scripts:
+      - name: Flutter clean & pub get
+        script: |
+          flutter clean
+          flutter pub get
+      - name: Build IPA (release)
+        script: |
+          flutter build ipa --release --no-tree-shake-icons
+    publishing:
+      app_store_connect:
+        auth: api_key
+        key_id: $APPSTORE_KEY_ID
+        issuer_id: $APPSTORE_ISSUER_ID
+        key_content: $APPSTORE_API_KEY_P8
+        submit_to_testflight: true
+        beta_groups:
+          - External Testers
