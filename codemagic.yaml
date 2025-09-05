@@ -10,12 +10,13 @@ workflows:
           flutter clean
           flutter pub get
       - name: Build Android App Bundle (release)
-        script: flutter build appbundle --release
+        script: |
+          flutter build appbundle --release
     artifacts:
       - build/app/outputs/bundle/release/app-release.aab
 
-  ios_manual_sign:
-    name: iOS Manual Sign & IPA (App Store)
+  ios_adhoc_sign:
+    name: iOS Ad Hoc – signed IPA
     max_build_duration: 60
     environment:
       flutter: stable
@@ -23,67 +24,38 @@ workflows:
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
-    code_signing:
-      certificates:
-        - certificate: MindBreathDistribution
-          password: $P12_PASSWORD
-      provisioning_profiles:
-        - MB_AppStore_Profile
+
     scripts:
       - name: Get dependencies
         script: flutter pub get
-      - name: Apply signing assets (keychain + profiles)
+
+      - name: Add signing assets & select profiles
         script: |
           keychain add-certificates
           xcode-project use-profiles
-      - name: Create export options for App Store
+
+      - name: Create export options for Ad Hoc
         script: |
           cat > export_options.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
-            <key>method</key><string>app-store</string>
+            <key>method</key><string>ad-hoc</string>
             <key>signingStyle</key><string>manual</string>
             <key>teamID</key><string>LRT5QA283X</string>
             <key>provisioningProfiles</key>
             <dict>
-              <key>com.carlostechops.mindbreath</key><string>MB_AppStore_Profile</string>
+              <key>com.carlostechops.mindbreath</key><string>MB_AdHoc_Profile</string>
             </dict>
             <key>compileBitcode</key><false/>
           </dict>
           </plist>
           EOF
+
       - name: Build signed IPA (Release)
         script: flutter build ipa --release --export-options-plist=export_options.plist
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - build/ios/ipa/*.dSYM.zip
 
-  ios_adhoc_sign:
-    name: iOS Ad Hoc Sign & IPA
-    max_build_duration: 60
-    environment:
-      flutter: stable
-      xcode: latest
-      vars:
-        BUNDLE_ID: com.carlostechops.mindbreath
-        TEAM_ID: LRT5QA283X
-    code_signing:
-      certificates:
-        - certificate: MindBreathDistribution
-          password: $P12_PASSWORD
-      provisioning_profiles:
-        - MB_AdHoc_Profile
-    scripts:
-      - name: Get dependencies
-        script: flutter pub get
-      - name: Apply signing assets
-        script: |
-          keychain add-certificates
-          xcode-project use-profiles
-      - name: Build signed IPA (Ad Hoc)
-        script: flutter build ipa --release
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/ipa/*.dSYM.zip
