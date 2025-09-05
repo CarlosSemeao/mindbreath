@@ -1,16 +1,6 @@
-# ---------- TOP-LEVEL CODE SIGNING (not inside a workflow) ----------
-code_signing:
-  ios_signing:
-    certificates:
-      - certificate: MindBreathDistribution       # EXACT name from Teams → iOS certificates
-        password: $P12_PASSWORD                   # add this as a Secret in Env variables UI
-    provisioning_profiles:
-      - MB_AppStore_Profile                       # EXACT name from Teams → iOS provisioning profiles
-
-# -------------------- WORKFLOWS --------------------
 workflows:
-  ios_manual_sign:
-    name: iOS Manual Sign & IPA
+  ios_ipa:
+    name: iOS – IPA (manual)
     max_build_duration: 60
 
     environment:
@@ -19,38 +9,49 @@ workflows:
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
-        # Do NOT put the actual password here; only reference $P12_PASSWORD above.
 
     scripts:
-      - name: Get dependencies
-        script: flutter pub get
+      - name: Flutter clean & get
+        script: |
+          flutter clean
+          flutter pub get
 
       - name: Apply signing assets (keychain + profiles)
         script: |
           keychain add-certificates
           xcode-project use-profiles
 
-      - name: Create export options for App Store
+      - name: Force Release manual signing
+        script: |
+          # Make sure Release uses manual Distribution signing and OUR profile
+          xcode-settings set CODE_SIGN_STYLE Manual --configuration Release --project ios/Runner.xcodeproj
+          xcode-settings set DEVELOPMENT_TEAM $TEAM_ID --configuration Release --project ios/Runner.xcodeproj
+          xcode-settings set PRODUCT_BUNDLE_IDENTIFIER $BUNDLE_ID --configuration Release --project ios/Runner.xcodeproj
+          # -------- Choose ONE profile/specifier (Ad Hoc FIRST) --------
+          xcode-settings set PROVISIONING_PROFILE_SPECIFIER "MB_AdHoc_Profile" --configuration Release --project ios/Runner.xcodeproj
+          # xcode-settings set PROVISIONING_PROFILE_SPECIFIER "MB_AppStore_Profile" --configuration Release --project ios/Runner.xcodeproj
+
+      - name: Create export options (Ad Hoc first)
         script: |
           cat > export_options.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
-            <key>method</key><string>app-store</string>
+            <key>method</key><string>ad-hoc</string>
             <key>signingStyle</key><string>manual</string>
             <key>teamID</key><string>LRT5QA283X</string>
             <key>provisioningProfiles</key>
             <dict>
-              <key>com.carlostechops.mindbreath</key><string>MB_AppStore_Profile</string>
+              <key>com.carlostechops.mindbreath</key><string>MB_AdHoc_Profile</string>
             </dict>
-            <key>compileBitcode</key><false/>
           </dict>
           </plist>
           EOF
 
-      - name: Build signed IPA (Release)
-        script: flutter build ipa --release --export-options-plist=export_options.plist
+      - name: Build IPA (Release)
+        script: |
+          flutter build ipa --release --export-options-plist=export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
