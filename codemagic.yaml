@@ -1,23 +1,4 @@
 workflows:
-  android_aab:
-    name: MindBreath Android → AAB artifact
-    max_build_duration: 60
-    environment:
-      flutter: stable
-    scripts:
-      - name: Flutter clean & pub get
-        script: |
-          flutter clean
-          flutter pub get
-      - name: Build Android App Bundle (release)
-        script: |
-          flutter build appbundle --release
-      - name: List artifacts
-        script: |
-          echo "AAB at: build/app/outputs/bundle/release/app-release.aab"
-    artifacts:
-      - build/app/outputs/bundle/release/app-release.aab
-
   ios_manual_sign:
     name: iOS Manual Sign & IPA
     max_build_duration: 60
@@ -27,13 +8,6 @@ workflows:
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
-
-    code_signing:
-      certificates:
-        - certificate: MindBreathDistribution.p12
-          password: $P12_PASSWORD        # set this in Codemagic → Environment variables (Secret)
-      provisioning_profiles:
-        - MindBreath_AppStore.mobileprovision
 
     scripts:
       - name: Get dependencies
