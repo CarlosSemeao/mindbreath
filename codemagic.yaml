@@ -11,8 +11,6 @@ workflows:
           flutter pub get
       - name: Build Android App Bundle (release)
         script: flutter build appbundle --release
-      - name: List artifacts
-        script: echo "AAB at: build/app/outputs/bundle/release/app-release.aab"
     artifacts:
       - build/app/outputs/bundle/release/app-release.aab
 
