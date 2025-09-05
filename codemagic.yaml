@@ -27,8 +27,6 @@ workflows:
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
-        # used to decrypt your .p12
-        P12_PASSWORD: Encrypted(put-this-in-Env-Vars-UI-as-Secret)
 
     scripts:
       - name: Get dependencies
