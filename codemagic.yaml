@@ -2,6 +2,7 @@ workflows:
   ios_adhoc_sign:
     name: iOS Ad Hoc – signed IPA
     max_build_duration: 60
+
     environment:
       flutter: stable
       xcode: latest
@@ -9,15 +10,21 @@ workflows:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
 
+    # Tell Codemagic which signing items to mount on the build machine
+    code_signing:
+      certificates:
+        - certificate: MindBreathDistribution   # must match the display name in Codemagic
+          password: $P12_PASSWORD
+      provisioning_profiles:
+        - MB_AdHoc_Profile                     # must match the profile name in Codemagic
+
     scripts:
       - name: Get dependencies
         script: flutter pub get
 
-      - name: Add signing assets & select profiles
+      - name: Import certs & apply profiles (manual signing)
         script: |
           keychain add-certificates
-          # force manual signing and apply your uploaded profiles
-          xcode-project build-settings set CODE_SIGN_STYLE=Manual
           xcode-project use-profiles
 
       - name: Create export options for Ad Hoc
@@ -25,8 +32,7 @@ workflows:
           cat > export_options.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
+          <plist version="1.0"><dict>
             <key>method</key><string>ad-hoc</string>
             <key>signingStyle</key><string>manual</string>
             <key>teamID</key><string>LRT5QA283X</string>
@@ -35,8 +41,7 @@ workflows:
               <key>com.carlostechops.mindbreath</key><string>MB_AdHoc_Profile</string>
             </dict>
             <key>compileBitcode</key><false/>
-          </dict>
-          </plist>
+          </dict></plist>
           EOF
 
       - name: Build signed IPA (Release)
