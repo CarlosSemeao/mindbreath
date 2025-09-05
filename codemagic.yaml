@@ -1,3 +1,4 @@
+workflows:
   ios_adhoc_sign:
     name: iOS Ad Hoc – signed IPA
     max_build_duration: 60
@@ -15,11 +16,8 @@
       - name: Add signing assets & select profiles
         script: |
           keychain add-certificates
-
-          # Force manual signing for all targets
+          # force manual signing and apply your uploaded profiles
           xcode-project build-settings set CODE_SIGN_STYLE=Manual
-
-          # Apply the uploaded provisioning profile
           xcode-project use-profiles
 
       - name: Create export options for Ad Hoc
