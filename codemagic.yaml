@@ -1,3 +1,4 @@
+
 workflows:
   ios_manual_sign:
     name: iOS Manual Sign & IPA
@@ -9,7 +10,13 @@ workflows:
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
-        # P12_PASSWORD is NOT here — add it in Codemagic → Environment variables (Secret) with this exact name.
+
+    code_signing:
+      certificates:
+        - certificate: MindBreathDistribution
+          password: $P12_PASSWORD
+      provisioning_profiles:
+        - MB_AppStore_Profile
 
     scripts:
       - name: Get dependencies
@@ -45,11 +52,3 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/ipa/*.dSYM.zip
-
-# <- This must be OUTSIDE the workflows block
-code_signing:
-  certificates:
-    - certificate: MB_Distribution.p12   # must match the name shown in Codemagic UI
-      password: $P12_PASSWORD                   # add this as a Secret env var in Codemagic
-  provisioning_profiles:
-    - MB_AppStore_Profile                       # must match the profile name in Codemagic UI
