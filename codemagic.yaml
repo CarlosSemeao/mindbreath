@@ -34,7 +34,6 @@ code_signing:
           password: $P12_PASSWORD   # must be set in Codemagic Environment variables (Secret)
       provisioning_profiles:
         - MindBreath_AppStore.mobileprovision
-
     scripts:
       - name: Get dependencies
         script: flutter pub get
