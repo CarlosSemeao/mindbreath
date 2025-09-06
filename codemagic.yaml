@@ -7,25 +7,17 @@ workflows:
       flutter: stable
       xcode: latest
       groups:
-        - Apple                      # uses your APPSTORE_* and P12_PASSWORD vars
+        - Apple
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
         APP_VERSION: 1.0.0
 
-    # 🔑 Pull uploaded signing assets into the build
-    code_signing:
-      certificates:
-        - certificate: MindBreathDistribution   # EXACT name in Codemagic UI
-          password: $P12_PASSWORD               # Secure env var (can be empty string)
-      provisioning_profiles:
-        - MB_AppStore_Profile                   # EXACT profile name in Codemagic UI
-
     scripts:
       - name: Get dependencies
         script: flutter pub get
 
-      - name: Install certs & profiles
+      - name: Install certs & profiles (from app settings)
         script: |
           set -e
           keychain add-certificates
@@ -47,7 +39,7 @@ workflows:
           </dict></plist>
           EOF
 
-      - name: Set marketing version & auto-bump build number
+      - name: Set marketing version & bump build number
         script: |
           if [ -n "$APP_VERSION" ]; then
             /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" ios/Runner/Info.plist || true
