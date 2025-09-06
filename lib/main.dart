@@ -114,7 +114,7 @@ class SettingsStore {
   SettingsStore(this.prefs);
   BreathSettings load() {
     final s = prefs.getStringList(_k);
-    if (s == null || s.length != 4) return BreathSettings.balanced;
+    if (s == null || s.length != 4) return BreathSettings.beginner;
     return BreathSettings(int.parse(s[0]), int.parse(s[1]), int.parse(s[2]), int.parse(s[3]));
   }
   Future<void> save(BreathSettings v) =>
@@ -140,7 +140,7 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
 
   late SharedPreferences _prefs;
   late SettingsStore _store;
-  BreathSettings _settings = BreathSettings.balanced;
+  BreathSettings _settings = BreathSettings.beginner;
 
   Map<String, int> _week = {};
 
