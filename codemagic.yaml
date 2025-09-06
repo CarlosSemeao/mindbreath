@@ -1,48 +1,4 @@
 workflows:
-  ios_adhoc_sign:
-    name: iOS Ad Hoc – signed IPA
-    max_build_duration: 60
-
-    environment:
-      flutter: stable
-      xcode: latest
-      vars:
-        BUNDLE_ID: com.carlostechops.mindbreath
-        TEAM_ID: LRT5QA283X
-
-    scripts:
-      - name: Get dependencies
-        script: flutter pub get
-
-      - name: Import certs & apply profiles (manual signing)
-        script: |
-          keychain add-certificates
-          xcode-project use-profiles
-
-      - name: Create export options for Ad Hoc
-        script: |
-          cat > export_options.plist <<'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
-            <key>method</key><string>ad-hoc</string>
-            <key>signingStyle</key><string>manual</string>
-            <key>teamID</key><string>LRT5QA283X</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>com.carlostechops.mindbreath</key><string>MB_AdHoc_Profile</string>
-            </dict>
-            <key>compileBitcode</key><false/>
-          </dict></plist>
-          EOF
-
-      - name: Build signed IPA (Release)
-        script: flutter build ipa --release --export-options-plist=export_options.plist
-
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - build/ios/ipa/*.dSYM.zip
-
   ios_appstore_upload:
     name: iOS → App Store Connect (TestFlight)
     max_build_duration: 60
@@ -59,11 +15,24 @@ workflows:
       - name: Get dependencies
         script: flutter pub get
 
-      - name: Add signing assets & enforce manual signing
+      - name: Enforce MANUAL DISTRIBUTION signing for all iOS targets
         script: |
+          # 1) Use the certs/profiles you uploaded in Teams → Code signing identities
           keychain add-certificates
-          # Ensure manual signing
-          xcode-project build-settings set CODE_SIGN_STYLE=Manual
+
+          # 2) Disable automatic signing everywhere (Runner + Pods-Runner)
+          xcode-project automatic-signing disable --project ios/Runner.xcodeproj --targets "Runner,Pods-Runner"
+
+          # 3) Make sure manual signing is set for all build configs
+          xcode-project build-settings set CODE_SIGN_STYLE=Manual --project ios/Runner.xcodeproj --targets "Runner,Pods-Runner"
+          xcode-project build-settings set DEVELOPMENT_TEAM=$TEAM_ID --project ios/Runner.xcodeproj --targets "Runner,Pods-Runner"
+          xcode-project build-settings set PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID --project ios/Runner.xcodeproj --targets "Runner"
+
+          # 4) Use your **App Store** provisioning profile on Release
+          xcode-project build-settings set CODE_SIGN_IDENTITY="Apple Distribution" --project ios/Runner.xcodeproj --targets "Runner,Pods-Runner" --build-config Release
+          xcode-project build-settings set PROVISIONING_PROFILE_SPECIFIER="MB_AppStore_Profile" --project ios/Runner.xcodeproj --targets "Runner,Pods-Runner" --build-config Release
+
+          # 5) Apply profiles (maps installed .mobileprovision files to targets)
           xcode-project use-profiles
 
       - name: Create export options for App Store
@@ -94,8 +63,7 @@ workflows:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUM" ios/Runner/Info.plist || true
 
       - name: Build signed IPA (Release)
-        script: |
-          flutter build ipa --release --export-options-plist=export_options.plist
+        script: flutter build ipa --release --export-options-plist=export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
@@ -103,10 +71,7 @@ workflows:
 
     publishing:
       app_store_connect:
-        # Configure API key in Codemagic UI (Publishing tab), not here.
-        submit_to_testflight: true
-    publishing:
-      app_store_connect:
+        # Uses your Environment variables (Settings → Environment variables)
         key_id: $APPSTORE_KEY_ID
         issuer_id: $APPSTORE_ISSUER_ID
         api_key: $APPSTORE_PRIVATE_KEY
