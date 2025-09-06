@@ -100,10 +100,12 @@ workflows:
       - build/ios/ipa/*.ipa
       - build/ios/ipa/*.dSYM.zip
 
-    publishing:
+        publishing:
       app_store_connect:
-        # Use API key env vars you created in Codemagic UI
-        api_key: $APPSTORE_PRIVATE_KEY
+        auth: api_key
         key_id: $APPSTORE_KEY_ID
         issuer_id: $APPSTORE_ISSUER_ID
+        api_key: $APPSTORE_PRIVATE_KEY
         submit_to_testflight: true
+        # beta_groups:
+        #   - Internal Testers
