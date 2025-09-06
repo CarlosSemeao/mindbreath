@@ -7,11 +7,18 @@ workflows:
       flutter: stable
       xcode: latest
       groups:
-        - Apple               # this pulls APPSTORE_* vars set in Codemagic UI
+        - Apple                         # pulls APPSTORE_* vars you created in Codemagic UI
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
         APP_VERSION: 1.0.0
+
+    # ⬇️ This tells Codemagic to install your uploaded cert/profile
+    code_signing:
+      certificates:
+        - MindBreathDistribution        # <— EXACT name shown in Teams → iOS certificates
+      provisioning_profiles:
+        - MB_AppStore_Profile           # <— EXACT name shown in Teams → iOS provisioning profiles
 
     scripts:
       - name: Get dependencies
@@ -59,7 +66,8 @@ workflows:
           cat > export_options.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
+          <plist version="1.0">
+          <dict>
             <key>method</key><string>app-store</string>
             <key>signingStyle</key><string>manual</string>
             <key>teamID</key><string>LRT5QA283X</string>
@@ -68,7 +76,8 @@ workflows:
               <key>com.carlostechops.mindbreath</key><string>MB_AppStore_Profile</string>
             </dict>
             <key>destination</key><string>export</string>
-          </dict></plist>
+          </dict>
+          </plist>
           EOF
 
       - name: Set marketing version & auto-bump build number
@@ -88,7 +97,7 @@ workflows:
 
     publishing:
       app_store_connect:
-        # Use the variables you created in Codemagic (Environment variables)
+        # Uses the secrets you added in Codemagic UI (Environment variables, group "Apple")
         key_id: $APPSTORE_KEY_ID
         issuer_id: $APPSTORE_ISSUER_ID
         api_key: $APPSTORE_PRIVATE_KEY
