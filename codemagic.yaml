@@ -2,19 +2,23 @@ workflows:
   ios_adhoc_sign:
     name: iOS Ad Hoc – signed IPA
     max_build_duration: 60
+
     environment:
       flutter: stable
       xcode: latest
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
+
     scripts:
       - name: Get dependencies
         script: flutter pub get
+
       - name: Import certs & apply profiles (manual signing)
         script: |
           keychain add-certificates
           xcode-project use-profiles
+
       - name: Create export options for Ad Hoc
         script: |
           cat > export_options.plist <<'EOF'
@@ -31,30 +35,46 @@ workflows:
             <key>compileBitcode</key><false/>
           </dict></plist>
           EOF
+
       - name: Build signed IPA (Release)
         script: flutter build ipa --release --export-options-plist=export_options.plist
+
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/ipa/*.dSYM.zip
-
+workflows:
   ios_appstore_upload:
     name: iOS → App Store Connect (TestFlight)
     max_build_duration: 60
+
     environment:
       flutter: stable
       xcode: latest
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
+        # Optional: set a fixed marketing version; build number will auto-bump
         APP_VERSION: 1.0.0
+
+    # Use the cert/profile you uploaded in Teams → Code signing identities
+    code_signing:
+      certificates:
+        - certificate: MindBreathDistribution
+          password: $P12_PASSWORD
+      provisioning_profiles:
+        - MB_AppStore_Profile
+
     scripts:
       - name: Get dependencies
         script: flutter pub get
+
       - name: Add signing assets & enforce manual signing
         script: |
           keychain add-certificates
+          # Make sure all targets/configs use Manual signing
           xcode-project build-settings set CODE_SIGN_STYLE=Manual
           xcode-project use-profiles
+
       - name: Create export options for App Store
         script: |
           cat > export_options.plist <<'EOF'
@@ -73,19 +93,39 @@ workflows:
           </dict>
           </plist>
           EOF
+
       - name: Set marketing version & auto-bump build number
         script: |
+          # Marketing version (optional, keep stable until you change it)
           if [ -n "$APP_VERSION" ]; then
             /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" ios/Runner/Info.plist || true
           fi
+          # Unique build number from Codemagic build id
           BUILD_NUM=${CM_BUILD_ID##*-}
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUM" ios/Runner/Info.plist || true
+
       - name: Build signed IPA (Release)
         script: |
-          flutter build ipa --release --export-options-plist=export_options.plist
+          flutter build ipa \
+            --release \
+            --export-options-plist=export_options.plist
+
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/ipa/*.dSYM.zip
+
     publishing:
       app_store_connect:
+        # Choose ONE of the two options below:
+
+        # (A) Recommended: API key auth (add these as Environment variables → Secure)
+        api_key: $APPSTORE_PRIVATE_KEY   # contents of the .p8 file
+        key_id: $APPSTORE_KEY_ID         # e.g. ABCDE12345
+        issuer_id: $APPSTORE_ISSUER_ID   # e.g. 11223344-5566-7788-9900-aabbccddeeff
+
+        # (B) Or, if you prefer setting key directly in Codemagic UI, comment the 3 lines above
+        # and pick the key in the UI instead of YAML.
+
         submit_to_testflight: true
+        # Optional: auto-submit for beta review
+        # beta_groups: ["Internal Testers"]
