@@ -1,5 +1,5 @@
 workflows:
-  ios_appstore_upload:
+  ios_testflight:
     name: iOS → TestFlight
     max_build_duration: 60
 
@@ -7,7 +7,7 @@ workflows:
       flutter: stable
       xcode: latest
       groups:
-        - Apple                     # uses APPSTORE_PRIVATE_KEY, APPSTORE_KEY_ID, APPSTORE_ISSUER_ID
+        - Apple                # uses your APPSTORE_PRIVATE_KEY, APPSTORE_KEY_ID, APPSTORE_ISSUER_ID
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
@@ -17,38 +17,24 @@ workflows:
       - name: Get dependencies
         script: flutter pub get
 
-      - name: Fetch signing files from Apple (cert + App Store profile)
+      - name: Initialize keychain
+        script: keychain initialize
+
+      - name: Fetch signing files (cert + App Store profile)
         script: |
           set -e
-          # Uses your App Store Connect API key from env vars in group "Apple"
-          app-store-connect fetch-signing-files \
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
             --apiKey "$APPSTORE_PRIVATE_KEY" \
             --issuerId "$APPSTORE_ISSUER_ID" \
             --keyId "$APPSTORE_KEY_ID" \
-            --type IOS_APP_STORE \
-            --bundle-id "$BUNDLE_ID" \
             --create
 
       - name: Install certs & provisioning profiles
         script: |
           set -e
-          # Installs any .p12 placed by the fetch step
           keychain add-certificates
-          # Applies the correct provisioning profile(s) to the Xcode project
-          xcode-project use-profiles
-
-      - name: Force MANUAL signing on Runner and Pods-Runner (Release)
-        script: |
-          set -e
-          xcode-project automatic-signing disable --project ios/Runner.xcodeproj --targets "Runner"
-          xcode-project automatic-signing disable --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner"
-
-          xcode-project build-settings set CODE_SIGN_STYLE=Manual --project ios/Runner.xcodeproj --targets "Runner"
-          xcode-project build-settings set DEVELOPMENT_TEAM=$TEAM_ID --project ios/Runner.xcodeproj --targets "Runner"
-          xcode-project build-settings set PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID --project ios/Runner.xcodeproj --targets "Runner"
-
-          xcode-project build-settings set CODE_SIGN_STYLE=Manual --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner"
-          xcode-project build-settings set DEVELOPMENT_TEAM=$TEAM_ID --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner"
+          xcode-project use-profiles      # sets Manual signing + applies the downloaded profile
 
       - name: Create export options (App Store)
         script: |
@@ -82,7 +68,6 @@ workflows:
 
     publishing:
       app_store_connect:
-        # Uses your env vars (group "Apple")
         key_id: $APPSTORE_KEY_ID
         issuer_id: $APPSTORE_ISSUER_ID
         api_key: $APPSTORE_PRIVATE_KEY
