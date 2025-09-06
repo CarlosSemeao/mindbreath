@@ -1,13 +1,13 @@
 workflows:
   ios_testflight:
-    name: iOS → TestFlight
+    name: iOS → TestFlight (auto-signing)
     max_build_duration: 60
 
     environment:
       flutter: stable
       xcode: latest
       groups:
-        - Apple                # uses your APPSTORE_PRIVATE_KEY, APPSTORE_KEY_ID, APPSTORE_ISSUER_ID
+        - Apple               # uses your APPSTORE_* env vars you added in Codemagic UI
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
@@ -17,24 +17,31 @@ workflows:
       - name: Get dependencies
         script: flutter pub get
 
-      - name: Initialize keychain
-        script: keychain initialize
-
-      - name: Fetch signing files (cert + App Store profile)
+      - name: Fetch signing files from App Store Connect
         script: |
           set -e
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+          # Load any uploaded certs (optional, safe if none)
+          keychain add-certificates
+
+          # Ask App Store Connect (via your APPSTORE_* vars) to fetch or CREATE
+          # an iOS App Store provisioning profile that matches your bundle id.
+          app-store-connect fetch-signing-files \
             --type IOS_APP_STORE \
-            --apiKey "$APPSTORE_PRIVATE_KEY" \
-            --issuerId "$APPSTORE_ISSUER_ID" \
-            --keyId "$APPSTORE_KEY_ID" \
+            --bundle-id "$BUNDLE_ID" \
+            --platform IOS \
             --create
 
-      - name: Install certs & provisioning profiles
+          # Attach the fetched profile(s) to the Xcode project
+          xcode-project use-profiles
+
+      - name: Set app versions
         script: |
-          set -e
-          keychain add-certificates
-          xcode-project use-profiles      # sets Manual signing + applies the downloaded profile
+          # Marketing version (optional)
+          if [ -n "$APP_VERSION" ]; then
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" ios/Runner/Info.plist || true
+          fi
+          # Unique build number from Codemagic build id
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $CM_BUILD_ID" ios/Runner/Info.plist || true
 
       - name: Create export options (App Store)
         script: |
@@ -44,23 +51,14 @@ workflows:
           <plist version="1.0">
           <dict>
             <key>method</key><string>app-store</string>
-            <key>signingStyle</key><string>manual</string>
-            <key>teamID</key><string>LRT5QA283X</string>
             <key>destination</key><string>export</string>
           </dict>
           </plist>
           EOF
 
-      - name: Set marketing version & auto-bump build number
-        script: |
-          if [ -n "$APP_VERSION" ]; then
-            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" ios/Runner/Info.plist || true
-          fi
-          BUILD_NUM=${CM_BUILD_ID##*-}
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUM" ios/Runner/Info.plist || true
-
       - name: Build signed IPA (Release)
-        script: flutter build ipa --release --export-options-plist=export_options.plist
+        script: |
+          flutter build ipa --release --export-options-plist=export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
@@ -68,6 +66,7 @@ workflows:
 
     publishing:
       app_store_connect:
+        # Uses your environment variables (Settings → Environment variables → group "Apple")
         key_id: $APPSTORE_KEY_ID
         issuer_id: $APPSTORE_ISSUER_ID
         api_key: $APPSTORE_PRIVATE_KEY
