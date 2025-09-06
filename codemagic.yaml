@@ -19,26 +19,35 @@ workflows:
         script: |
           set -e
 
-          # --- Write .p12 from base64 and import into a dedicated keychain ---
+          # --- Paths ---
+          KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
+          PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+
+          # --- Create & activate a dedicated keychain (password must be NON-empty) ---
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -s "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Make keychain usable by codesign without prompts
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+
+          # --- Import .p12 from base64 ---
           echo "$P12_BASE64" | base64 --decode > cert.p12
+          security import cert.p12 \
+            -k "$KEYCHAIN_PATH" \
+            -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
 
-          # Create & use a dedicated keychain with a NON-empty password
-          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          # Grant access to codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # Import the distribution identity
-          security import cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          # Sanity check (should list an Apple Distribution identity)
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
-          # Allow codesign/security to access the key without prompts
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
-
-          # Sanity check (should list one Apple Distribution identity)
-          security find-identity -p codesigning build.keychain
-
-          # --- Write .mobileprovision from base64 ---
-          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          echo "$MOBILEPROVISION_BASE64" | base64 --decode > "$HOME/Library/MobileDevice/Provisioning Profiles/MB_AppStore_Profile.mobileprovision"
+          # --- Install provisioning profile ---
+          mkdir -p "$PROFILES_DIR"
+          echo "$MOBILEPROVISION_BASE64" | base64 --decode > "$PROFILES_DIR/MB_AppStore_Profile.mobileprovision"
 
       - name: Enforce manual signing on Runner & Pods
         script: |
