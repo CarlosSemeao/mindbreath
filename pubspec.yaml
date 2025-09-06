@@ -88,3 +88,14 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path_ios: assets/icons/mindbreath_ios_1024.png   # your glossy 1024×1024 iOS master
+
+  # ANDROID adaptive layers
+  adaptive_icon_background: assets/icons/mb_bg.png        # 1024×1024 or SVG; gradient teal background
+  adaptive_icon_foreground: assets/icons/mb_fg.png        # 1024×1024 or SVG; orb/rings only, with padding
+  adaptive_icon_monochrome: assets/icons/mb_mono.png      # optional, single-color version for Android 13+
+
+  remove_alpha_ios: true                                  # required by Apple
