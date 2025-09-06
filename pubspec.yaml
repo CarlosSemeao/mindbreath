@@ -18,31 +18,15 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.13.1
-  
-flutter_icons:
-  ios: true
-  android: true
-  image_path: "assets/icon/icon.png"
 
-# Flutter section
-flutter:
-  uses-material-design: true
-  assets:
-    - assets/icons/   # optional, but nice to keep assets tracked
-
-# Single, consolidated launcher icons config
+# App icon config (use ONE block, and use 'flutter_launcher_icons' key)
 flutter_launcher_icons:
   ios: true
-  android: true
-
-  # iOS master (1024×1024 PNG, no transparency ideally)
+  android: false                 # keep Android off until we add its icon layers
   image_path_ios: assets/icons/mindbreath_ios_1024.png
   remove_alpha_ios: true
 
-  # Android adaptive icon (provide separate layers)
-  adaptive_icon_background: assets/icons/mb_bg.png        # solid/gradient background (no transparency issues)
-  adaptive_icon_foreground: assets/icons/mb_fg.png        # foreground (orb/logo), transparent around shape
-  adaptive_icon_monochrome: assets/icons/mb_mono.png      # optional, Android 13+
-
-  # If you also want a single fallback for legacy:
-  # image_path_android: assets/icons/icon-foreground.png
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/              # keep your icons folder tracked
