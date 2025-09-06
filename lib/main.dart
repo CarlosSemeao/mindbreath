@@ -4,29 +4,23 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show Colors, ShaderMask, LinearGradient, Alignment;
 
+/* ================= App Title (gradient) ================= */
 class AppTitle extends StatelessWidget {
   const AppTitle({super.key});
 
   @override
   Widget build(BuildContext context) {
     final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
-
-    // Teal gradients tuned for each theme
     final colors = isDark
-        ? const [Color(0xFF7FF3E7), Color(0xFF32D3C8)]   // brighter glow on dark
-        : const [Color(0xFF008080), Color(0xFF20B2AA)];   // refined teal on light
-
-    // Subtle shadow for legibility (softer on light, crisper on dark)
+        ? const [Color(0xFF7FF3E7), Color(0xFF32D3C8)]
+        : const [Color(0xFF008080), Color(0xFF20B2AA)];
     final shadowColor = isDark ? const Color(0x66000000) : const Color(0x33000000);
 
     return ShaderMask(
       shaderCallback: (bounds) => LinearGradient(
-        colors: colors,
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
+        colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight,
       ).createShader(bounds),
       child: Text(
         'MindBreath',
@@ -35,37 +29,26 @@ class AppTitle extends StatelessWidget {
           fontWeight: FontWeight.w700,
           fontSize: 26,
           color: Colors.white, // masked by ShaderMask
-          shadows: [
-            Shadow(blurRadius: 8, color: shadowColor, offset: const Offset(0, 3)),
-          ],
+          shadows: [Shadow(blurRadius: 8, color: shadowColor, offset: const Offset(0, 3))],
         ),
       ),
     );
   }
 }
 
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MindBreathApp());
-}
-
 /* ---------- Theme: teal + minimal, with dark ink text ---------- */
 class T {
   static const primary = CupertinoDynamicColor.withBrightness(
-    color: Color(0xFF14B8A6), // teal
-    darkColor: Color(0xFF2DD4BF),
+    color: Color(0xFF14B8A6), darkColor: Color(0xFF2DD4BF),
   );
   static const bg = CupertinoDynamicColor.withBrightness(
-    color: Color(0xFFF6FBFA),
-    darkColor: Color(0xFF0C1413),
+    color: Color(0xFFF6FBFA), darkColor: Color(0xFF0C1413),
   );
   static const ink = CupertinoDynamicColor.withBrightness(
-    color: Color(0xFF1F2937), // dark gray for text
-    darkColor: Color(0xFFE5E7EB),
+    color: Color(0xFF1F2937), darkColor: Color(0xFFE5E7EB),
   );
   static const surface = CupertinoDynamicColor.withBrightness(
-    color: Color(0xAAFFFFFF),
-    darkColor: Color(0x3314B8A6),
+    color: Color(0xAAFFFFFF), darkColor: Color(0x3314B8A6),
   );
   static Color ring(BuildContext c, double a) =>
       CupertinoDynamicColor.resolve(primary, c).withOpacity(a);
@@ -73,6 +56,11 @@ class T {
 
 /* ---------- lightweight notifier so Progress updates instantly --- */
 final progressTick = ValueNotifier<int>(0);
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const MindBreathApp());
+}
 
 class MindBreathApp extends StatelessWidget {
   const MindBreathApp({super.key});
@@ -115,7 +103,7 @@ class BreathSettings {
   const BreathSettings(this.inh, this.hold, this.ex, this.rest);
 
   static const beginner = BreathSettings(4, 2, 6, 2);
-  static const balanced = BreathSettings(6, 6, 8, 4);   // slightly longer default
+  static const balanced = BreathSettings(6, 6, 8, 4);
   static const advanced = BreathSettings(8, 10, 10, 4);
 
   BreathSettings copyWith({int? inh, int? hold, int? ex, int? rest}) =>
@@ -162,11 +150,8 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
   void initState() {
     super.initState();
     _scale = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-      lowerBound: 0.70,
-      upperBound: 1.00,
-      value: 0.85,
+      vsync: this, duration: const Duration(milliseconds: 1200),
+      lowerBound: 0.70, upperBound: 1.00, value: 0.85,
     );
     _float = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
     _init();
@@ -195,8 +180,7 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
 
   void _start() { if (_running) return; setState(() => _running = true); _go(Phase.inhale); }
   void _stop() {
-    _timer?.cancel();
-    _scale.stop();
+    _timer?.cancel(); _scale.stop();
     setState(() { _running = false; _phase = Phase.rest; _scale.value = 0.85; });
   }
 
@@ -225,11 +209,7 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
         break;
       case Phase.exhale:
         _scale.animateTo(0.70, duration: _dExhale, curve: Curves.easeInOutCubic);
-        _timer = Timer(_dExhale, () async {
-          // COUNT A SESSION *IMMEDIATELY* AFTER EXHALE
-          await _saveToday();
-          _go(Phase.rest); // enter rest after saving so Stop won’t lose the session
-        });
+        _timer = Timer(_dExhale, () async { await _saveToday(); _go(Phase.rest); });
         break;
       case Phase.rest:
         _timer = Timer(_dRest, () { if (_running) _go(Phase.inhale); });
@@ -254,13 +234,9 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
 
     return CupertinoPageScaffold(
       backgroundColor: bg,
-      navigationBar: const CupertinoNavigationBar(
-        middle: AppTitle(),
-        border: null,
-        backgroundColor: Color(0xCCFFFFFF), // keep your frosted look
-        ),
+      // ✅ Single navigationBar only
       navigationBar: CupertinoNavigationBar(
-        middle: const _BrandTitle(), // elegant gradient brand
+        middle: const AppTitle(),
         border: null,
         backgroundColor: CupertinoDynamicColor.resolve(T.surface, context),
         trailing: CupertinoButton(
@@ -293,7 +269,6 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
                 ),
               ),
             ),
-
             // Perfectly centered globe
             Expanded(
               child: AnimatedBuilder(
@@ -313,7 +288,6 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
                 },
               ),
             ),
-
             // Controls
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -339,8 +313,7 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
 
   Future<void> _openSettings() async {
     final result = await showCupertinoModalPopup<BreathSettings>(
-      context: context,
-      builder: (_) => _SettingsSheet(initial: _settings),
+      context: context, builder: (_) => _SettingsSheet(initial: _settings),
     );
     if (result != null) { setState(() => _settings = result); await _store.save(result); }
   }
@@ -360,9 +333,7 @@ class _Glass extends StatelessWidget {
           decoration: BoxDecoration(
             color: CupertinoDynamicColor.resolve(T.surface, context),
             borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(color: Color(0x1A000000), blurRadius: 20, offset: Offset(0, 12)),
-            ],
+            boxShadow: const [BoxShadow(color: Color(0x1A000000), blurRadius: 20, offset: Offset(0, 12))],
           ),
           child: child,
         ),
@@ -420,31 +391,6 @@ class _RingsPainter extends CustomPainter {
   bool shouldRepaint(covariant _RingsPainter o) => o.c1 != c1 || o.c2 != c2 || o.c3 != c3;
 }
 
-/* ------------------ Brand title (stylish) ----------------------- */
-class _BrandTitle extends StatelessWidget {
-  const _BrandTitle();
-  @override
-  Widget build(BuildContext context) {
-    return ShaderMask(
-      shaderCallback: (rect) => const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFF2DD4BF), Color(0xFF14B8A6)],
-      ).createShader(rect),
-      blendMode: BlendMode.srcIn,
-      child: const Text(
-        'MindBreath',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontFamily: 'MindBreathDisplay',  // <- new
-          fontWeight: FontWeight.w700,
-          fontSize: 22,
-          letterSpacing: 0.3,
-        ),
-      ),
-    );
-  }
-}
 /* ---------------- Settings sheet (dark-gray text) --------------- */
 class _SettingsSheet extends StatefulWidget {
   final BreathSettings initial;
@@ -490,7 +436,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           CupertinoSegmentedControl<int>(
             groupValue: mode == _Mode.preset ? preset : -1,
             onValueChanged: (v) => setState(() { mode = _Mode.preset; preset = v; }),
-            // dark-gray text, subtle teal selection
             selectedColor: T.ring(context, .18),
             unselectedColor: const Color(0x00000000),
             borderColor: T.ring(context, .35),
@@ -583,7 +528,6 @@ class _ProgressPageState extends State<ProgressPage> {
   void initState() {
     super.initState();
     _load();
-    // refresh instantly whenever a session is saved
     progressTick.addListener(_load);
   }
 
