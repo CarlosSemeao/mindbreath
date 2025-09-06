@@ -4,6 +4,45 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Colors, ShaderMask, LinearGradient, Alignment;
+
+class AppTitle extends StatelessWidget {
+  const AppTitle({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+
+    // Teal gradients tuned for each theme
+    final colors = isDark
+        ? const [Color(0xFF7FF3E7), Color(0xFF32D3C8)]   // brighter glow on dark
+        : const [Color(0xFF008080), Color(0xFF20B2AA)];   // refined teal on light
+
+    // Subtle shadow for legibility (softer on light, crisper on dark)
+    final shadowColor = isDark ? const Color(0x66000000) : const Color(0x33000000);
+
+    return ShaderMask(
+      shaderCallback: (bounds) => LinearGradient(
+        colors: colors,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(bounds),
+      child: Text(
+        'MindBreath',
+        style: TextStyle(
+          fontFamily: 'Manrope',
+          fontWeight: FontWeight.w700,
+          fontSize: 26,
+          color: Colors.white, // masked by ShaderMask
+          shadows: [
+            Shadow(blurRadius: 8, color: shadowColor, offset: const Offset(0, 3)),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -215,6 +254,11 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
 
     return CupertinoPageScaffold(
       backgroundColor: bg,
+      navigationBar: const CupertinoNavigationBar(
+        middle: AppTitle(),
+        border: null,
+        backgroundColor: Color(0xCCFFFFFF), // keep your frosted look
+        ),
       navigationBar: CupertinoNavigationBar(
         middle: const _BrandTitle(), // elegant gradient brand
         border: null,
@@ -381,11 +425,10 @@ class _BrandTitle extends StatelessWidget {
   const _BrandTitle();
   @override
   Widget build(BuildContext context) {
-    final light = CupertinoDynamicColor.resolve(T.primary, context);
-    final deep  = light.withOpacity(.7);
     return ShaderMask(
       shaderCallback: (rect) => const LinearGradient(
-        begin: Alignment.topLeft, end: Alignment.bottomRight,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
         colors: [Color(0xFF2DD4BF), Color(0xFF14B8A6)],
       ).createShader(rect),
       blendMode: BlendMode.srcIn,
@@ -393,15 +436,15 @@ class _BrandTitle extends StatelessWidget {
         'MindBreath',
         textAlign: TextAlign.center,
         style: TextStyle(
-          fontSize: 22,
+          fontFamily: 'MindBreathDisplay',  // <- new
           fontWeight: FontWeight.w700,
+          fontSize: 22,
           letterSpacing: 0.3,
         ),
       ),
     );
   }
 }
-
 /* ---------------- Settings sheet (dark-gray text) --------------- */
 class _SettingsSheet extends StatefulWidget {
   final BreathSettings initial;
