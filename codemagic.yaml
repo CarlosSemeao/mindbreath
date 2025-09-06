@@ -7,11 +7,19 @@ workflows:
       flutter: stable
       xcode: latest
       groups:
-        - Apple
+        - Apple                     # gives access to APPSTORE_* and P12_PASSWORD
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
         APP_VERSION: 1.0.0
+
+    # ⬇️ THIS tells Codemagic which cert/profile to install from Teams → Code signing identities
+    code_signing:
+      certificates:
+        - certificate: MindBreathDistribution   # must match the name in Codemagic UI
+          password: $P12_PASSWORD               # create this env var (can be empty if no password)
+      provisioning_profiles:
+        - MB_AppStore_Profile                   # must match the name in Codemagic UI
 
     scripts:
       - name: Get dependencies
@@ -28,7 +36,8 @@ workflows:
           cat > export_options.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
+          <plist version="1.0">
+          <dict>
             <key>method</key><string>app-store</string>
             <key>signingStyle</key><string>manual</string>
             <key>teamID</key><string>LRT5QA283X</string>
@@ -36,7 +45,8 @@ workflows:
             <dict>
               <key>com.carlostechops.mindbreath</key><string>MB_AppStore_Profile</string>
             </dict>
-          </dict></plist>
+          </dict>
+          </plist>
           EOF
 
       - name: Set marketing version & bump build number
