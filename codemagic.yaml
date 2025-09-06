@@ -43,7 +43,6 @@ workflows:
       - build/ios/ipa/*.ipa
       - build/ios/ipa/*.dSYM.zip
 
-workflows:
   ios_appstore_upload:
     name: iOS → App Store Connect (TestFlight)
     max_build_duration: 60
