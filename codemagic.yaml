@@ -105,3 +105,9 @@ workflows:
       app_store_connect:
         # Configure API key in Codemagic UI (Publishing tab), not here.
         submit_to_testflight: true
+    publishing:
+      app_store_connect:
+        key_id: $APPSTORE_KEY_ID
+        issuer_id: $APPSTORE_ISSUER_ID
+        api_key: $APPSTORE_PRIVATE_KEY
+        submit_to_testflight: true
