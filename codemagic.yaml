@@ -7,37 +7,62 @@ workflows:
       flutter: stable
       xcode: latest
       groups:
-        - Apple                     # gives access to APPSTORE_* and P12_PASSWORD
+        - Apple                      # you already have APPSTORE_* here
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
         APP_VERSION: 1.0.0
 
-    # ⬇️ THIS tells Codemagic which cert/profile to install from Teams → Code signing identities
-    code_signing:
-      certificates:
-        - certificate: MindBreathDistribution   # must match the name in Codemagic UI
-          password: $P12_PASSWORD               # create this env var (can be empty if no password)
-      provisioning_profiles:
-        - MB_AppStore_Profile                   # must match the name in Codemagic UI
-
     scripts:
       - name: Get dependencies
         script: flutter pub get
 
-      - name: Install certs & profiles (from app settings)
+      # Install signing assets from env vars (no `code_signing:` section needed)
+      - name: Install certificate & provisioning profile from env
         script: |
           set -e
-          keychain add-certificates
-          xcode-project use-profiles
+          CERT_P12="$CM_BUILD_DIR/cert.p12"
+          PROFILE="$CM_BUILD_DIR/MB_AppStore_Profile.mobileprovision"
+
+          # Decode files stored in env vars
+          echo "$P12_BASE64" | base64 --decode > "$CERT_P12"
+          echo "$MOBILEPROVISION_BASE64" | base64 --decode > "$PROFILE"
+
+          # Create an isolated keychain and import Distribution cert
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import "$CERT_P12" -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+
+          # Install the provisioning profile
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(/usr/bin/security cms -D -i "$PROFILE"))
+          cp "$PROFILE" ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+
+      - name: Enforce manual signing on Runner & Pods
+        script: |
+          set -e
+          xcode-project automatic-signing disable --project ios/Runner.xcodeproj --targets "Runner"
+          xcode-project automatic-signing disable --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner"
+
+          xcode-project build-settings set CODE_SIGN_STYLE=Manual --project ios/Runner.xcodeproj --targets "Runner"
+          xcode-project build-settings set DEVELOPMENT_TEAM=$TEAM_ID --project ios/Runner.xcodeproj --targets "Runner"
+          xcode-project build-settings set PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID --project ios/Runner.xcodeproj --targets "Runner"
+          xcode-project build-settings set PROVISIONING_PROFILE_SPECIFIER="MB_AppStore_Profile" --project ios/Runner.xcodeproj --targets "Runner" --build-config Release
+          xcode-project build-settings set CODE_SIGN_IDENTITY="Apple Distribution" --project ios/Runner.xcodeproj --targets "Runner" --build-config Release
+
+          xcode-project build-settings set CODE_SIGN_STYLE=Manual --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner"
+          xcode-project build-settings set DEVELOPMENT_TEAM=$TEAM_ID --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner"
+          xcode-project build-settings set PROVISIONING_PROFILE_SPECIFIER="MB_AppStore_Profile" --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner" --build-config Release
+          xcode-project build-settings set CODE_SIGN_IDENTITY="Apple Distribution" --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner" --build-config Release
 
       - name: Create export options (App Store)
         script: |
           cat > export_options.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
+          <plist version="1.0"><dict>
             <key>method</key><string>app-store</string>
             <key>signingStyle</key><string>manual</string>
             <key>teamID</key><string>LRT5QA283X</string>
@@ -45,8 +70,7 @@ workflows:
             <dict>
               <key>com.carlostechops.mindbreath</key><string>MB_AppStore_Profile</string>
             </dict>
-          </dict>
-          </plist>
+          </dict></plist>
           EOF
 
       - name: Set marketing version & bump build number
