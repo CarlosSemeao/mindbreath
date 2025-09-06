@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart' show Colors, ShaderMask, LinearGradient, Alignment;
 
-/* ================= App Title (gradient) ================= */
+/* ================= App Title (gradient, no shadow) ================= */
 class AppTitle extends StatelessWidget {
   const AppTitle({super.key});
 
@@ -16,20 +16,18 @@ class AppTitle extends StatelessWidget {
     final colors = isDark
         ? const [Color(0xFF7FF3E7), Color(0xFF32D3C8)]
         : const [Color(0xFF008080), Color(0xFF20B2AA)];
-    final shadowColor = isDark ? const Color(0x66000000) : const Color(0x33000000);
 
     return ShaderMask(
       shaderCallback: (bounds) => LinearGradient(
         colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight,
       ).createShader(bounds),
-      child: Text(
+      child: const Text(
         'MindBreath',
         style: TextStyle(
           fontFamily: 'Manrope',
           fontWeight: FontWeight.w700,
           fontSize: 26,
           color: Colors.white, // masked by ShaderMask
-          shadows: [Shadow(blurRadius: 8, color: shadowColor, offset: const Offset(0, 3))],
         ),
       ),
     );
@@ -234,7 +232,6 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
 
     return CupertinoPageScaffold(
       backgroundColor: bg,
-      // ✅ Single navigationBar only
       navigationBar: CupertinoNavigationBar(
         middle: const AppTitle(),
         border: null,
@@ -319,7 +316,7 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
   }
 }
 
-/* --------------------- Frosted card ----------------------------- */
+/* --------------------- Frosted card (no shadow) ----------------- */
 class _Glass extends StatelessWidget {
   final Widget child;
   const _Glass({required this.child});
@@ -333,7 +330,6 @@ class _Glass extends StatelessWidget {
           decoration: BoxDecoration(
             color: CupertinoDynamicColor.resolve(T.surface, context),
             borderRadius: BorderRadius.circular(16),
-            boxShadow: const [BoxShadow(color: Color(0x1A000000), blurRadius: 20, offset: Offset(0, 12))],
           ),
           child: child,
         ),
@@ -342,7 +338,7 @@ class _Glass extends StatelessWidget {
   }
 }
 
-/* -------------------- Minimal “globe” --------------------------- */
+/* -------------------- Minimal “globe” (no shadow) --------------- */
 class _RingsGlobe extends StatelessWidget {
   final String label;
   const _RingsGlobe({required this.label});
@@ -356,13 +352,7 @@ class _RingsGlobe extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // single soft shadow for crisp definition
-        Container(
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: Color(0x1A000000), blurRadius: 26, offset: Offset(0, 14))],
-          ),
-        ),
+        // (shadow removed)
         CustomPaint(painter: _RingsPainter(c1: c1, c2: c2, c3: c3)),
         Center(
           child: Text(
@@ -592,7 +582,6 @@ class _ProgressPageState extends State<ProgressPage> {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(8),
                               color: T.ring(context, v == 0 ? .10 : .28),
-                              boxShadow: v == 0 ? null : const [BoxShadow(color: Color(0x22000000), blurRadius: 10, offset: Offset(0, 6))],
                             ),
                           ),
                           const SizedBox(height: 6),
