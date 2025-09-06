@@ -23,7 +23,7 @@ dev_dependencies:
 flutter_launcher_icons:
   ios: true
   android: false                 # keep Android off until we add its icon layers
-  image_path_ios: assets/icons/mindbreath_ios_1024.png
+  image_path_ios: assets/icon/MB-Icon.png
   remove_alpha_ios: true
 
 flutter:
