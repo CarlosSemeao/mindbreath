@@ -18,6 +18,21 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 version: 1.0.0+1
 
+flutter_launcher_icons:
+  android: true
+  ios: true
+
+  # Master icon (use your 1024×1024 glossy PNG)
+  image_path: assets/icons/icon-1024.png
+
+  # ANDROID ADAPTIVE ICON (recommended for modern Android)
+  adaptive_icon_background: "#0FB7AD"   # teal background (or use an image)
+  adaptive_icon_foreground: assets/icons/icon-foreground.png
+  adaptive_icon_monochrome: assets/icons/icon-mono.png   # optional (Android 13+)
+
+  # iOS keep true so it builds the AppIcon.appiconset automatically
+  remove_alpha_ios: true
+
 environment:
   sdk: ^3.9.2
 
