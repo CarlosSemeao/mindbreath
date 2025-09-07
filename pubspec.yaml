@@ -1,7 +1,6 @@
 name: mindbreath
-description: "MindBreath — simple, elegant breathing app"
+description: "MindBreath"
 publish_to: 'none'
-
 version: 1.0.0+1
 
 environment:
@@ -22,15 +21,17 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # If you have an assets/ folder, keep this. Otherwise remove it.
-  assets:
-    - assets/
+  # If you add images later, list them under assets:
+  # assets:
+  #   - assets/
 
-  # If you have Manrope font files in /fonts, keep this section.
-  # If not, either add the files or delete this whole "fonts:" block.
   fonts:
     - family: Manrope
       fonts:
         - asset: fonts/Manrope-Regular.ttf
+        - asset: fonts/Manrope-Medium.ttf
+          weight: 500
+        - asset: fonts/Manrope-SemiBold.ttf
+          weight: 600
         - asset: fonts/Manrope-Bold.ttf
           weight: 700
