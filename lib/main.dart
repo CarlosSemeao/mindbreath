@@ -511,7 +511,53 @@ class _RingsPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _RingsPainter o) =>
       o.c1 != c1 || o.c2 != c2 || o.c3 != c3;
+  
 }
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+  @override
+  Widget build(BuildContext context) {
+    final ink = CupertinoDynamicColor.resolve(T.ink, context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 10),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(color: ink, fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+class _FullWidthSegment<T> extends StatelessWidget {
+  final T groupValue;
+  final ValueChanged<T> onChanged;
+  final Map<T, Widget> children;
+  const _FullWidthSegment({
+    required this.groupValue,
+    required this.onChanged,
+    required this.children,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: SizedBox(
+        width: double.infinity,
+        child: CupertinoSegmentedControl<T>(
+          groupValue: groupValue,
+          onValueChanged: onChanged,
+          selectedColor: T.ring(context, .18),
+          unselectedColor: const Color(0x00000000),
+          borderColor: T.ring(context, .35),
+          children: children,
+        ),
+      ),
+    );
+  }
+}
+
 
 /* ---------------- Settings sheet (with Appearance) --------------- */
 class _SettingsSheet extends StatefulWidget {
@@ -561,75 +607,49 @@ class _SettingsSheetState extends State<_SettingsSheet> {
       title:
           Text('Breathing Settings', style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
       message: Column(
-        children: [
-          const SizedBox(height: 8),
-          CupertinoSegmentedControl<int>(
-            groupValue: mode == _Mode.preset ? preset : -1,
-            onValueChanged: (v) => setState(() {
-              mode = _Mode.preset;
-              preset = v;
-            }),
-            selectedColor: T.ring(context, .18),
-            unselectedColor: const Color(0x00000000),
-            borderColor: T.ring(context, .35),
-            children: {
-              0: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('Beginner', style: TextStyle(color: ink))),
-              1: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('Balanced', style: TextStyle(color: ink))),
-              2: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('Advanced', style: TextStyle(color: ink))),
-            },
-          ),
-          const SizedBox(height: 12),
-          CupertinoButton(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            onPressed: () => setState(() => mode = _Mode.custom),
-            child: Text('Or set custom times', style: TextStyle(color: ink)),
-          ),
-          const SizedBox(height: 8),
-          if (mode == _Mode.custom)
-            _CustomPickers(
-              value: custom,
-              onChanged: (s) => setState(() => custom = s),
-            ),
-          const SizedBox(height: 10),
-          // ------- Appearance (System / Light / Dark) -------
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text('Appearance',
-                style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
-          ),
-          const SizedBox(height: 6),
-          CupertinoSegmentedControl<Appearance>(
-            groupValue: _appearance,
-            onValueChanged: (v) {
-              setState(() => _appearance = v);
-              appearance.value = v; // persists + notifies app-wide
-            },
-            selectedColor: T.ring(context, .18),
-            unselectedColor: const Color(0x00000000),
-            borderColor: T.ring(context, .35),
-            children: {
-              Appearance.system: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                child: Text('System', style: TextStyle(color: ink)),
-              ),
-              Appearance.light: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                child: Text('Light', style: TextStyle(color: ink)),
-              ),
-              Appearance.dark: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                child: Text('Dark', style: TextStyle(color: ink)),
-              ),
-            },
-          ),
-        ],
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    const _SectionTitle('Breathing Settings'),
+    _FullWidthSegment<int>(
+      groupValue: mode == _Mode.preset ? preset : -1,
+      onChanged: (v) => setState(() { mode = _Mode.preset; preset = v; }),
+      children: {
+        0: const Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('Beginner')),
+        1: const Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('Balanced')),
+        2: const Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('Advanced')),
+      },
+    ),
+    const SizedBox(height: 12),
+
+    // Custom Times (renamed + centered)
+    GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => mode = _Mode.custom),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(vertical: 6),
+        child: Text('Custom Times', textAlign: TextAlign.center),
       ),
+    ),
+    if (mode == _Mode.custom)
+      _CustomPickers(value: custom, onChanged: (s) => setState(() => custom = s)),
+    const SizedBox(height: 12),
+
+    // Appearance (now visually identical to the section above)
+    const _SectionTitle('Appearance'),
+    _FullWidthSegment<Appearance>(
+      groupValue: _appearance,
+      onChanged: (v) {
+        setState(() => _appearance = v);
+        appearance.value = v; // persist + notify
+      },
+      children: const {
+        Appearance.system: Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6), child: Text('System')),
+        Appearance.light:  Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6), child: Text('Light')),
+        Appearance.dark:   Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6), child: Text('Dark')),
+      },
+    ),
+  ],
+),
       actions: [
         CupertinoActionSheetAction(
           onPressed: () => Navigator.of(context).pop(_selected()),
@@ -686,7 +706,29 @@ class _CustomPickers extends StatelessWidget {
     );
   }
 }
+class _Stat extends StatelessWidget {
+  final String label;
+  final String value;
+  const _Stat(this.label, this.value);
+  @override
+  Widget build(BuildContext context) {
+    final ink = CupertinoDynamicColor.resolve(T.ink, context);
+    return Row(
+      children: [
+        Text(label, style: TextStyle(color: ink.withOpacity(.70))),
+        const SizedBox(width: 8),
+        Text(value, style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
+}
 
+class _RowSpacer extends StatelessWidget {
+  final double h;
+  const _RowSpacer(this.h);
+  @override
+  Widget build(BuildContext context) => SizedBox(height: h);
+}
 /* ------------------------ Progress page ------------------------- */
 
 // Put the range enum at top level (Dart requires this)
@@ -783,6 +825,120 @@ class _ProgressPageState extends State<ProgressPage> {
       ),
     );
   }
+    // Title row
+    GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _openHistory(context),
+      onLongPress: () => _pickRange(context),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Text('Weekly Sessions',
+              style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 8),
+          Icon(CupertinoIcons.info, size: 16, color: ink.withOpacity(.45)),
+        ],
+      ),
+    ),
+    const _RowSpacer(12),
+
+    // Bars area — keeps original look, just a touch taller for breathing room
+    SizedBox(
+      height: 110,
+      child: days.length <= 7
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(days.length, (i) {
+                final v = days[i].$2;
+                final barH = (v == 0) ? 18.0 : (18 + (v.clamp(0, 6) * 12)).toDouble();
+                return Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeInOutCubic,
+                        width: 22,
+                        height: barH,
+                        decoration: BoxDecoration(
+                          color: T.ring(context, v == 0 ? .10 : .28),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(_dayLetter(days[i].$1),
+                          style: TextStyle(color: ink.withOpacity(.55), letterSpacing: .5)),
+                    ],
+                  ),
+                );
+              }),
+            )
+          : CupertinoScrollbar(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: List.generate(days.length, (i) {
+                    final v = days[i].$2;
+                    final barH = (v == 0) ? 18.0 : (18 + (v.clamp(0, 6) * 12)).toDouble();
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 260),
+                            curve: Curves.easeInOutCubic,
+                            width: 22,
+                            height: barH,
+                            decoration: BoxDecoration(
+                              color: T.ring(context, v == 0 ? .10 : .28),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(_dayLetter(days[i].$1),
+                              style: TextStyle(color: ink.withOpacity(.55), letterSpacing: .5)),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ),
+    ),
+
+    const _RowSpacer(16),
+    // Metrics — clean 2-column grid, aligned on the x-axis
+    Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Stat('Today:', '${_today()} session(s)'),
+              const _RowSpacer(8),
+              _Stat('This month:', '${_monthTotal(DateTime.now())}'),
+            ],
+          ),
+        ),
+        const SizedBox(width: 24),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Stat('This week:', '${_weekTotal(days)}'),
+              const _RowSpacer(8),
+              _Stat('Streak:', '${_currentStreak()}   •   Best streak: ${_bestStreak()}'),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ],
+),
 
   // ------------ helpers ------------
   static String _key(DateTime d) =>
