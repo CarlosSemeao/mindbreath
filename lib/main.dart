@@ -978,11 +978,19 @@ class _ProgressPageState extends State<ProgressPage> {
     if (!context.mounted) return;
     showCupertinoDialog(
       context: context,
-      builder: (_) => const CupertinoAlertDialog(
-        title: Text('Exported'),
-        content: Text(
+      barrierDismissible: true, // <-- NEW: tap outside to close
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Exported'),
+        content: const Text(
           'CSV copied to clipboard. Paste it into Notes, Numbers, or Excel.',
         ),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
@@ -1101,23 +1109,26 @@ class _ProgressPageState extends State<ProgressPage> {
                     behavior: HitTestBehavior.opaque,
                     onTap: () => _openHistory(context),
                     onLongPress: () => _pickRange(context),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Weekly Sessions',
-                          style: TextStyle(
-                            color: ink,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
+                    child: Center( // <-- NEW: center the whole header
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min, // <-- NEW: shrink to fit
+                        children: [
+                          Text(
+                            'Weekly Sessions',
+                            style: TextStyle(
+                              color: ink,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          CupertinoIcons.info,
-                          size: 16,
-                          color: ink.withOpacity(.45),
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          Icon(
+                            CupertinoIcons.info,
+                            size: 16,
+                            color: ink.withOpacity(.45),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
