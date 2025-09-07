@@ -602,10 +602,10 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _FullWidthSegment<T extends Object> extends StatelessWidget {
-  final T? groupValue;                    // nullable: “nothing selected” = null
-  final ValueChanged<T> onChanged;
-  final Map<T, Widget> children;
+class _FullWidthSegment<S extends Object> extends StatelessWidget {
+  final S? groupValue;                 // null = “no selection”
+  final ValueChanged<S> onChanged;
+  final Map<S, Widget> children;
 
   const _FullWidthSegment({
     required this.groupValue,
@@ -619,19 +619,18 @@ class _FullWidthSegment<T extends Object> extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: SizedBox(
         width: double.infinity,
-        child: CupertinoSegmentedControl<T>(
+        child: CupertinoSegmentedControl<S>(
           groupValue: groupValue,
           onValueChanged: onChanged,
-          selectedColor: TTheme.ring(context, .18), // if your theme class is T, keep T.ring
+          selectedColor: T.ring(context, .18),   // <- use your theme class T
           unselectedColor: const Color(0x00000000),
-          borderColor: T.ring(context, .35),
+          borderColor: T.ring(context, .35),     // <- use your theme class T
           children: children,
         ),
       ),
     );
   }
 }
-
 /* ---------------- Settings sheet (with Appearance) --------------- */
 class _SettingsSheet extends StatefulWidget {
   final BreathSettings initial;
@@ -686,26 +685,14 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         children: [
           const _SectionTitle('Breathing Settings'),
           _FullWidthSegment<int>(
-            groupValue: mode == _Mode.preset ? preset : -1,
-            onChanged: (v) => setState(() {
-              mode = _Mode.preset;
-              preset = v;
-            }),
-            children: {
-              0: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text('Beginner'),
-              ),
-              1: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text('Balanced'),
-              ),
-              2: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text('Advanced'),
-              ),
-            },
-          ),
+  groupValue: mode == _Mode.preset ? preset : null,
+  onChanged: (v) => setState(() { mode = _Mode.preset; preset = v; }),
+  children: const {
+    0: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('Beginner')),
+    1: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('Balanced')),
+    2: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('Advanced')),
+  },
+)
           const SizedBox(height: 12),
 
           // Custom Times (renamed + centered)
@@ -727,28 +714,17 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           // Appearance (now visually identical to the section above)
           const _SectionTitle('Appearance'),
           _FullWidthSegment<Appearance>(
-            groupValue: _appearance,
-            onChanged: (v) {
-              setState(() => _appearance = v);
-              appearance.value = v; // persist + notify
-            },
-            children: const {
-              Appearance.system: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Text('System'),
-              ),
-              Appearance.light: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Text('Light'),
-              ),
-              Appearance.dark: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Text('Dark'),
-              ),
-            },
-          ),
-        ],
-      ),
+  groupValue: _appearance,
+  onChanged: (v) {
+    setState(() => _appearance = v);
+    appearance.value = v;
+  },
+  children: const {
+    Appearance.system: Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6), child: Text('System')),
+    Appearance.light:  Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6), child: Text('Light')),
+    Appearance.dark:   Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6), child: Text('Dark')),
+  },
+)
       actions: [
         CupertinoActionSheetAction(
           onPressed: () => Navigator.of(context).pop(_selected()),
