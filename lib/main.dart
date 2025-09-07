@@ -928,7 +928,7 @@ class _ProgressPageState extends State<ProgressPage> {
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,
           onPressed: () => _exportCsv(context),
-          child: Icon(CupertinoIcons.square_and_arrow_up, size: 22, color: ink),
+          child: Icon(CupertinoIcons.square_arrow_up, size: 22, color: ink),
         ),
       ),
       child: SafeArea(
