@@ -948,10 +948,10 @@ class _ProgressPageState extends State<ProgressPage> {
             child: const Text('Last 60 days'),
           ),
         ],
-        cancelButton: const CupertinoActionSheetAction(
-          onPressed: Navigator.pop,
-          child: Text('Cancel'),
-        ),
+        cancelButton: CupertinoActionSheetAction(
+  onPressed: () => Navigator.pop(context),
+  child: Text('Cancel', style: TextStyle(color: ink)),
+),
       ),
     );
   }
@@ -1085,10 +1085,10 @@ class _ProgressPageState extends State<ProgressPage> {
             child: const Text('Export CSV (copy)'),
           ),
         ],
-        cancelButton: const CupertinoActionSheetAction(
-          onPressed: Navigator.pop,
-          child: Text('Close'),
-        ),
+        cancelButton: CupertinoActionSheetAction(
+  onPressed: Navigator.pop,
+  child: const Text('Close'),
+),
       ),
     );
   }
