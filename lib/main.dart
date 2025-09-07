@@ -1129,36 +1129,33 @@ class _ProgressPageState extends State<ProgressPage> {
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(hPad),
-          child: _Glass(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(hPad, vPad, hPad, vPad + 2),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Tappable title opens 30-day history; long-press to change range
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => _openHistory(context),
-                    onLongPress: () => _pickRange(context),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Weekly Sessions',
-                          style: TextStyle(
-                            color: ink,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          CupertinoIcons.info,
-                          size: 16,
-                          color: ink.withOpacity(.45),
-                        ),
-                      ],
-                    ),
-                  ),
+         child: Column(
+  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    // keep your header + bars here
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(...),
+        const SizedBox(height: 14),
+        SizedBox(height: 96, child: ...), // your bars
+      ],
+    ),
+
+    // stats block
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Today: ${_today()} session(s)', ...),
+        SizedBox(height: 6),
+        Text('This week: ${_weekTotal(days)}   •   Streak: ${_currentStreak()}', ...),
+        SizedBox(height: 4),
+        Text('This month: ${_monthTotal(DateTime.now())}   •   Best streak: ${_bestStreak()}', ...),
+      ],
+    ),
+  ],
+),
                   const SizedBox(height: 14),
 
                   // Compact bars
