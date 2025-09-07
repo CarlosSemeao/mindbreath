@@ -603,7 +603,7 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _FullWidthSegment<S extends Object> extends StatelessWidget {
-  final S? groupValue;                 // null = “no selection”
+  final S? groupValue; // null = “no selection”
   final ValueChanged<S> onChanged;
   final Map<S, Widget> children;
 
@@ -622,15 +622,16 @@ class _FullWidthSegment<S extends Object> extends StatelessWidget {
         child: CupertinoSegmentedControl<S>(
           groupValue: groupValue,
           onValueChanged: onChanged,
-          selectedColor: T.ring(context, .18),   // <- use your theme class T
+          selectedColor: T.ring(context, .18), // <- use your theme class T
           unselectedColor: const Color(0x00000000),
-          borderColor: T.ring(context, .35),     // <- use your theme class T
+          borderColor: T.ring(context, .35), // <- use your theme class T
           children: children,
         ),
       ),
     );
   }
 }
+
 /* ---------------- Settings sheet (with Appearance) --------------- */
 class _SettingsSheet extends StatefulWidget {
   final BreathSettings initial;
@@ -677,93 +678,98 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   }
 
   @override
-Widget build(BuildContext context) {
-  final ink = CupertinoDynamicColor.resolve(T.ink, context);
+  Widget build(BuildContext context) {
+    final ink = CupertinoDynamicColor.resolve(T.ink, context);
 
-  return CupertinoActionSheet(
-    message: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const _SectionTitle('Breathing Settings'),
-        _FullWidthSegment<int>(
-          groupValue: mode == _Mode.preset ? preset : null,
-          onChanged: (v) => setState(() {
-            mode = _Mode.preset;
-            preset = v;
-          }),
-          children: const {
-            0: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Text('Beginner'),
-            ),
-            1: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Text('Balanced'),
-            ),
-            2: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Text('Advanced'),
-            ),
-          },
-        ),
-        const SizedBox(height: 12),
+    return CupertinoActionSheet(
+      message: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const _SectionTitle('Breathing Settings'),
 
-        // Custom Times
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => setState(() => mode = _Mode.custom),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 6),
-            child: Text('Custom Times', textAlign: TextAlign.center),
-          ),
-        ),
-        if (mode == _Mode.custom)
-          _CustomPickers(
-            value: custom,
-            onChanged: (s) => setState(() => custom = s),
+          _FullWidthSegment<int>(
+            groupValue: mode == _Mode.preset ? preset : null,
+            onChanged: (v) => setState(() {
+              mode = _Mode.preset;
+              preset = v;
+            }),
+            children: const {
+              0: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Text('Beginner'),
+              ),
+              1: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Text('Balanced'),
+              ),
+              2: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Text('Advanced'),
+              ),
+            },
           ),
 
-        const SizedBox(height: 12),
+          const SizedBox(height: 12),
 
-        // Appearance
-        const _SectionTitle('Appearance'),
-        _FullWidthSegment<Appearance>(
-          groupValue: _appearance,
-          onChanged: (v) {
-            setState(() => _appearance = v);
-            appearance.value = v; // persist + notify
-          },
-          children: const {
-            Appearance.system: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Text('System'),
+          // Custom Times
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => mode = _Mode.custom),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 6),
+              child: Text('Custom Times', textAlign: TextAlign.center),
             ),
-            Appearance.light: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Text('Light'),
+          ),
+
+          if (mode == _Mode.custom)
+            _CustomPickers(
+              value: custom,
+              onChanged: (s) => setState(() => custom = s),
             ),
-            Appearance.dark: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Text('Dark'),
-            ),
-          },
+
+          const SizedBox(height: 12),
+
+          // Appearance
+          const _SectionTitle('Appearance'),
+          _FullWidthSegment<Appearance>(
+            groupValue: _appearance,
+            onChanged: (v) {
+              setState(() => _appearance = v);
+              appearance.value = v; // persist + notify
+            },
+            children: const {
+              Appearance.system: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Text('System'),
+              ),
+              Appearance.light: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Text('Light'),
+              ),
+              Appearance.dark: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Text('Dark'),
+              ),
+            },
+          ),
+        ],
+      ), // <-- closes Column(message:)
+      actions: [
+        CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(_selected()),
+          isDefaultAction: true,
+          child: Text('Save', style: TextStyle(color: ink)),
         ),
       ],
-    ),
-    actions: [
-      CupertinoActionSheetAction(
-        onPressed: () => Navigator.of(context).pop(_selected()),
-        isDefaultAction: true,
-        child: Text('Save', style: TextStyle(color: ink)),
+      cancelButton: CupertinoActionSheetAction(
+        onPressed: () => Navigator.pop(context),
+        isDestructiveAction: false,
+        child: Text('Cancel', style: TextStyle(color: ink)),
       ),
-    ],
-    cancelButton: CupertinoActionSheetAction(
-      onPressed: () => Navigator.pop(context),
-      isDestructiveAction: false,
-      child: Text('Cancel', style: TextStyle(color: ink)),
-    ),
-  );
-} //
+    ); // <-- closes CupertinoActionSheet
+  }
+} // <-- closes _SettingsSheetState
+
 class _CustomPickers extends StatelessWidget {
   final BreathSettings value;
   final ValueChanged<BreathSettings> onChanged;
