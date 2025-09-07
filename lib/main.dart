@@ -948,9 +948,9 @@ class _ProgressPageState extends State<ProgressPage> {
             child: const Text('Last 60 days'),
           ),
         ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+        cancelButton: const CupertinoActionSheetAction(
+          onPressed: Navigator.pop,
+          child: Text('Cancel'),
         ),
       ),
     );
@@ -986,7 +986,6 @@ class _ProgressPageState extends State<ProgressPage> {
 
   int _bestStreak() {
     if (_week.isEmpty) return 0;
-    // Sort all recorded days ascending
     final days = _week.keys.map(DateTime.parse).toList()..sort();
     int best = 0, cur = 0;
     DateTime? prev;
@@ -1001,11 +1000,9 @@ class _ProgressPageState extends State<ProgressPage> {
       prev = d;
     }
     return best;
-    // Note: with the 60-day retention above, this is an “all-time (last 60d)” best.
   }
 
   Future<void> _exportCsv(BuildContext context) async {
-    // Build CSV: date,sessions sorted newest → oldest
     final entries = _week.entries.toList()
       ..sort((a, b) => b.key.compareTo(a.key));
     final csv = StringBuffer('date,sessions\n');
@@ -1013,7 +1010,6 @@ class _ProgressPageState extends State<ProgressPage> {
       csv.writeln('${e.key},${e.value}');
     }
     await Clipboard.setData(ClipboardData(text: csv.toString()));
-    // Small confirmation
     if (!context.mounted) return;
     showCupertinoDialog(
       context: context,
@@ -1089,9 +1085,9 @@ class _ProgressPageState extends State<ProgressPage> {
             child: const Text('Export CSV (copy)'),
           ),
         ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
+        cancelButton: const CupertinoActionSheetAction(
+          onPressed: Navigator.pop,
+          child: Text('Close'),
         ),
       ),
     );
@@ -1129,40 +1125,42 @@ class _ProgressPageState extends State<ProgressPage> {
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(hPad),
-         child: Column(
-  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    // keep your header + bars here
-    Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GestureDetector(...),
-        const SizedBox(height: 14),
-        SizedBox(height: 96, child: ...), // your bars
-      ],
-    ),
-
-    // stats block
-    Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Today: ${_today()} session(s)', ...),
-        SizedBox(height: 6),
-        Text('This week: ${_weekTotal(days)}   •   Streak: ${_currentStreak()}', ...),
-        SizedBox(height: 4),
-        Text('This month: ${_monthTotal(DateTime.now())}   •   Best streak: ${_bestStreak()}', ...),
-      ],
-    ),
-  ],
-),
+          child: _Glass(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(hPad, vPad, hPad, vPad + 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title row (tap for history; long-press to change range)
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _openHistory(context),
+                    onLongPress: () => _pickRange(context),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Weekly Sessions',
+                          style: TextStyle(
+                            color: ink,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          CupertinoIcons.info,
+                          size: 16,
+                          color: ink.withOpacity(.45),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 14),
 
-                  // Compact bars
+                  // Bars
                   SizedBox(
                     height: 96,
                     child: days.length <= 7
-                        // Original compact layout (unchanged)
                         ? Row(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: List.generate(days.length, (i) {
@@ -1202,7 +1200,6 @@ class _ProgressPageState extends State<ProgressPage> {
                               );
                             }),
                           )
-                        // For 30/60 days: horizontal scroll, same bar style
                         : CupertinoScrollbar(
                             child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
@@ -1241,7 +1238,6 @@ class _ProgressPageState extends State<ProgressPage> {
                                           ),
                                         ),
                                         const SizedBox(height: 8),
-                                        // Minimalist labels: weekday letter
                                         Text(
                                           _dayLetter(days[i].$1),
                                           style: TextStyle(
@@ -1260,20 +1256,56 @@ class _ProgressPageState extends State<ProgressPage> {
 
                   const SizedBox(height: 18),
 
-                  // Today + week summary
-                  Text(
-                    'Today: ${_today()} session(s)',
-                    style: TextStyle(color: ink.withOpacity(.75), fontSize: 16),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'This week: ${_weekTotal(days)}   •   Streak: ${_currentStreak()}',
-                    style: TextStyle(color: ink.withOpacity(.55), fontSize: 14),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'This month: ${_monthTotal(DateTime.now())}   •   Best streak: ${_bestStreak()}',
-                    style: TextStyle(color: ink.withOpacity(.55), fontSize: 14),
+                  // Metrics (vertically aligned columns)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Today: ${_today()} session(s)',
+                              style: TextStyle(
+                                color: ink.withOpacity(.75),
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'This month: ${_monthTotal(DateTime.now())}',
+                              style: TextStyle(
+                                color: ink.withOpacity(.55),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'This week: ${_weekTotal(days)}',
+                              style: TextStyle(
+                                color: ink.withOpacity(.55),
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Streak: ${_currentStreak()}   •   Best streak: ${_bestStreak()}',
+                              style: TextStyle(
+                                color: ink.withOpacity(.55),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
