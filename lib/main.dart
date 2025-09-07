@@ -52,11 +52,56 @@ class T {
       CupertinoDynamicColor.resolve(primary, c).withOpacity(a);
 }
 
+/* ----------------------- Appearance control ----------------------- */
+enum Appearance { system, light, dark }
+
+class AppearanceController extends ChangeNotifier {
+  static const _prefsKey = 'MB.appearance.v1';
+  final SharedPreferences prefs;
+  Appearance _value;
+
+  AppearanceController(this.prefs, this._value);
+
+  Appearance get value => _value;
+
+  set value(Appearance v) {
+    if (_value == v) return;
+    _value = v;
+    prefs.setInt(_prefsKey, v.index);
+    notifyListeners();
+  }
+
+  static Future<AppearanceController> load() async {
+    final p = await SharedPreferences.getInstance();
+    final idx = p.getInt(_prefsKey);
+    final v = (idx == null || idx < 0 || idx > 2)
+        ? Appearance.system
+        : Appearance.values[idx];
+    return AppearanceController(p, v);
+  }
+
+  Brightness effectiveBrightness(BuildContext context) {
+    switch (_value) {
+      case Appearance.light:
+        return Brightness.light;
+      case Appearance.dark:
+        return Brightness.dark;
+      case Appearance.system:
+      default:
+        return MediaQuery.platformBrightnessOf(context);
+    }
+  }
+}
+
 /* ---------- lightweight notifier so Progress updates instantly --- */
 final progressTick = ValueNotifier<int>(0);
 
-void main() {
+/* Make main async so we can load appearance before runApp */
+late AppearanceController appearance;
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  appearance = await AppearanceController.load();
   runApp(const MindBreathApp());
 }
 
@@ -64,13 +109,29 @@ class MindBreathApp extends StatelessWidget {
   const MindBreathApp({super.key});
   @override
   Widget build(BuildContext context) {
-    return CupertinoApp(
-      debugShowCheckedModeBanner: false,
-      theme: const CupertinoThemeData(
-        primaryColor: T.primary,
-        barBackgroundColor: T.surface,
-      ),
-      home: const RootTabs(),
+    // Base theme stays exactly as you designed (teal palette).
+    final base = const CupertinoThemeData(
+      primaryColor: T.primary,
+      barBackgroundColor: T.surface,
+    );
+
+    return AnimatedBuilder(
+      animation: appearance,
+      builder: (context, _) {
+        return CupertinoApp(
+          debugShowCheckedModeBanner: false,
+          theme: base,
+          // Use builder to apply the chosen brightness (System/Light/Dark)
+          builder: (context, child) {
+            final b = appearance.effectiveBrightness(context);
+            return CupertinoTheme(
+              data: base.copyWith(brightness: b),
+              child: child!,
+            );
+          },
+          home: const RootTabs(),
+        );
+      },
     );
   }
 }
@@ -352,7 +413,6 @@ class _RingsGlobe extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // (shadow removed)
         CustomPaint(painter: _RingsPainter(c1: c1, c2: c2, c3: c3)),
         Center(
           child: Text(
@@ -381,7 +441,7 @@ class _RingsPainter extends CustomPainter {
   bool shouldRepaint(covariant _RingsPainter o) => o.c1 != c1 || o.c2 != c2 || o.c3 != c3;
 }
 
-/* ---------------- Settings sheet (dark-gray text) --------------- */
+/* ---------------- Settings sheet (with Appearance) --------------- */
 class _SettingsSheet extends StatefulWidget {
   final BreathSettings initial;
   const _SettingsSheet({required this.initial});
@@ -395,6 +455,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   _Mode mode = _Mode.preset;
   int preset = 1; // 0 beginner, 1 balanced, 2 advanced
   late BreathSettings custom;
+
+  Appearance _appearance = appearance.value;
 
   @override
   void initState() {
@@ -445,6 +507,37 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           if (mode == _Mode.custom) _CustomPickers(
             value: custom,
             onChanged: (s) => setState(() => custom = s),
+          ),
+          const SizedBox(height: 10),
+          // ------- Appearance (System / Light / Dark) -------
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Appearance', style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(height: 6),
+          CupertinoSegmentedControl<Appearance>(
+            groupValue: _appearance,
+            onValueChanged: (v) {
+              setState(() => _appearance = v);
+              appearance.value = v; // persists + notifies app-wide
+            },
+            selectedColor: T.ring(context, .18),
+            unselectedColor: const Color(0x00000000),
+            borderColor: T.ring(context, .35),
+            children: {
+              Appearance.system: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                child: Text('System', style: TextStyle(color: ink)),
+              ),
+              Appearance.light: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                child: Text('Light', style: TextStyle(color: ink)),
+              ),
+              Appearance.dark: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                child: Text('Dark', style: TextStyle(color: ink)),
+              ),
+            },
           ),
         ],
       ),
