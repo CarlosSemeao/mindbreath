@@ -4,7 +4,8 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/material.dart' show Colors, ShaderMask, LinearGradient, Alignment;
+import 'package:flutter/material.dart'
+    show Colors, ShaderMask, LinearGradient, Alignment;
 
 /* ================= App Title (gradient, no shadow) ================= */
 class AppTitle extends StatelessWidget {
@@ -152,9 +153,13 @@ class RootTabs extends StatelessWidget {
         backgroundColor: CupertinoDynamicColor.resolve(T.surface, context),
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.circle), label: 'Breathe'),
+            icon: Icon(CupertinoIcons.circle),
+            label: 'Breathe',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.chart_bar_alt_fill), label: 'Progress'),
+            icon: Icon(CupertinoIcons.chart_bar_alt_fill),
+            label: 'Progress',
+          ),
         ],
       ),
       tabBuilder: (_, i) => CupertinoTabView(
@@ -174,7 +179,12 @@ class BreathSettings {
   static const advanced = BreathSettings(8, 10, 10, 4);
 
   BreathSettings copyWith({int? inh, int? hold, int? ex, int? rest}) =>
-      BreathSettings(inh ?? this.inh, hold ?? this.hold, ex ?? this.ex, rest ?? this.rest);
+      BreathSettings(
+        inh ?? this.inh,
+        hold ?? this.hold,
+        ex ?? this.ex,
+        rest ?? this.rest,
+      );
 }
 
 class SettingsStore {
@@ -192,13 +202,12 @@ class SettingsStore {
     );
   }
 
-  Future<void> save(BreathSettings v) =>
-      prefs.setStringList(_k, [
-        v.inh.toString(),
-        v.hold.toString(),
-        v.ex.toString(),
-        v.rest.toString()
-      ]);
+  Future<void> save(BreathSettings v) => prefs.setStringList(_k, [
+    v.inh.toString(),
+    v.hold.toString(),
+    v.ex.toString(),
+    v.rest.toString(),
+  ]);
 }
 
 /* ------------------------- Breathe page ------------------------- */
@@ -210,7 +219,8 @@ class BreathePage extends StatefulWidget {
   State<BreathePage> createState() => _BreathePageState();
 }
 
-class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin {
+class _BreathePageState extends State<BreathePage>
+    with TickerProviderStateMixin {
   late final AnimationController _scale;
   late final AnimationController _float;
   Phase _phase = Phase.rest;
@@ -234,8 +244,10 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
       upperBound: 1.00,
       value: 0.85,
     );
-    _float = AnimationController(vsync: this, duration: const Duration(seconds: 8))
-      ..repeat();
+    _float = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
     _init();
   }
 
@@ -258,8 +270,11 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
 
     // keep only last 60 days
     final cutoff = t.subtract(const Duration(days: 60));
-    _week.removeWhere((d, _) =>
-        DateTime.parse(d).isBefore(DateTime(cutoff.year, cutoff.month, cutoff.day)));
+    _week.removeWhere(
+      (d, _) => DateTime.parse(
+        d,
+      ).isBefore(DateTime(cutoff.year, cutoff.month, cutoff.day)),
+    );
 
     await _prefs.setStringList(
       'week',
@@ -305,14 +320,22 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
 
     switch (p) {
       case Phase.inhale:
-        _scale.animateTo(1.00, duration: _dInhale, curve: Curves.easeInOutCubic);
+        _scale.animateTo(
+          1.00,
+          duration: _dInhale,
+          curve: Curves.easeInOutCubic,
+        );
         _timer = Timer(_dInhale, () => _go(Phase.hold));
         break;
       case Phase.hold:
         _timer = Timer(_dHold, () => _go(Phase.exhale));
         break;
       case Phase.exhale:
-        _scale.animateTo(0.70, duration: _dExhale, curve: Curves.easeInOutCubic);
+        _scale.animateTo(
+          0.70,
+          duration: _dExhale,
+          curve: Curves.easeInOutCubic,
+        );
         _timer = Timer(_dExhale, () async {
           await _saveToday();
           _go(Phase.rest);
@@ -327,11 +350,11 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
   }
 
   String get _label => switch (_phase) {
-        Phase.inhale => 'Inhale',
-        Phase.hold => 'Hold',
-        Phase.exhale => 'Exhale',
-        Phase.rest => 'Rest',
-      };
+    Phase.inhale => 'Inhale',
+    Phase.hold => 'Hold',
+    Phase.exhale => 'Exhale',
+    Phase.rest => 'Rest',
+  };
 
   @override
   void dispose() {
@@ -365,19 +388,32 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
               child: _Glass(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(_label,
-                          style: TextStyle(
-                              color: ink, fontSize: 18, fontWeight: FontWeight.w600)),
+                      Text(
+                        _label,
+                        style: TextStyle(
+                          color: ink,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       Row(
                         children: [
-                          Text('Haptics', style: TextStyle(color: ink.withOpacity(.6))),
+                          Text(
+                            'Haptics',
+                            style: TextStyle(color: ink.withOpacity(.6)),
+                          ),
                           const SizedBox(width: 8),
                           CupertinoSwitch(
-                              value: _haptics, onChanged: (v) => setState(() => _haptics = v)),
+                            value: _haptics,
+                            onChanged: (v) => setState(() => _haptics = v),
+                          ),
                         ],
                       ),
                     ],
@@ -393,12 +429,17 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
                   final w = MediaQuery.of(context).size.width;
                   final base = w * 0.72;
                   final s = _scale.value;
-                  final dy = math.sin(_float.value * 2 * math.pi) * 6; // gentle float
+                  final dy =
+                      math.sin(_float.value * 2 * math.pi) * 6; // gentle float
                   final d = base * s;
                   return Center(
                     child: Transform.translate(
                       offset: Offset(0, dy),
-                      child: SizedBox(width: d, height: d, child: _RingsGlobe(label: _label)),
+                      child: SizedBox(
+                        width: d,
+                        height: d,
+                        child: _RingsGlobe(label: _label),
+                      ),
                     ),
                   );
                 },
@@ -410,16 +451,26 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
               child: Row(
                 children: [
                   Expanded(
-                      child:
-                          CupertinoButton.filled(onPressed: _start, child: const Text('Start'))),
+                    child: CupertinoButton.filled(
+                      onPressed: _start,
+                      child: const Text('Start'),
+                    ),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: CupertinoButton(
                       onPressed: _stop,
-                      color:
-                          CupertinoDynamicColor.resolve(T.primary, context).withOpacity(0.12),
-                      child: Text('Stop',
-                          style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
+                      color: CupertinoDynamicColor.resolve(
+                        T.primary,
+                        context,
+                      ).withOpacity(0.12),
+                      child: Text(
+                        'Stop',
+                        style: TextStyle(
+                          color: ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -479,15 +530,18 @@ class _RingsGlobe extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        CustomPaint(painter: _RingsPainter(c1: c1, c2: c2, c3: c3)),
+        CustomPaint(
+          painter: _RingsPainter(c1: c1, c2: c2, c3: c3),
+        ),
         Center(
           child: Text(
             label,
             style: TextStyle(
-                color: ink.withOpacity(.85),
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                letterSpacing: .2),
+              color: ink.withOpacity(.85),
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              letterSpacing: .2,
+            ),
           ),
         ),
       ],
@@ -503,16 +557,34 @@ class _RingsPainter extends CustomPainter {
     final r = size.width / 2;
     final c = Offset(r, r);
     canvas
-      ..drawCircle(c, r, Paint()..color = c1..isAntiAlias = true)
-      ..drawCircle(c, r * .66, Paint()..color = c2..isAntiAlias = true)
-      ..drawCircle(c, r * .36, Paint()..color = c3..isAntiAlias = true);
+      ..drawCircle(
+        c,
+        r,
+        Paint()
+          ..color = c1
+          ..isAntiAlias = true,
+      )
+      ..drawCircle(
+        c,
+        r * .66,
+        Paint()
+          ..color = c2
+          ..isAntiAlias = true,
+      )
+      ..drawCircle(
+        c,
+        r * .36,
+        Paint()
+          ..color = c3
+          ..isAntiAlias = true,
+      );
   }
 
   @override
   bool shouldRepaint(covariant _RingsPainter o) =>
       o.c1 != c1 || o.c2 != c2 || o.c3 != c3;
-  
 }
+
 class _SectionTitle extends StatelessWidget {
   final String text;
   const _SectionTitle(this.text);
@@ -524,16 +596,16 @@ class _SectionTitle extends StatelessWidget {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: TextStyle(color: ink, fontSize: 16, fontWeight: FontWeight.w600),
+        style: TextStyle(color: ink, fontSize: 17, fontWeight: FontWeight.w600),
       ),
     );
   }
 }
 
-class _FullWidthSegment<T> extends StatelessWidget {
-  final T groupValue;
-  final ValueChanged<T> onChanged;
-  final Map<T, Widget> children;
+class _FullWidthSegment<V> extends StatelessWidget {
+  final V groupValue;
+  final ValueChanged<V> onChanged;
+  final Map<V, Widget> children;
   const _FullWidthSegment({
     required this.groupValue,
     required this.onChanged,
@@ -545,7 +617,7 @@ class _FullWidthSegment<T> extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: SizedBox(
         width: double.infinity,
-        child: CupertinoSegmentedControl<T>(
+        child: CupertinoSegmentedControl<V>(
           groupValue: groupValue,
           onValueChanged: onChanged,
           selectedColor: T.ring(context, .18),
@@ -557,7 +629,6 @@ class _FullWidthSegment<T> extends StatelessWidget {
     );
   }
 }
-
 
 /* ---------------- Settings sheet (with Appearance) --------------- */
 class _SettingsSheet extends StatefulWidget {
@@ -597,59 +668,85 @@ class _SettingsSheetState extends State<_SettingsSheet> {
 
   BreathSettings _selected() {
     if (mode == _Mode.custom) return custom;
-    return [BreathSettings.beginner, BreathSettings.balanced, BreathSettings.advanced][preset];
+    return [
+      BreathSettings.beginner,
+      BreathSettings.balanced,
+      BreathSettings.advanced,
+    ][preset];
   }
 
   @override
   Widget build(BuildContext context) {
     final ink = CupertinoDynamicColor.resolve(T.ink, context);
     return CupertinoActionSheet(
-      title:
-          Text('Breathing Settings', style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
       message: Column(
-  mainAxisSize: MainAxisSize.min,
-  children: [
-    const _SectionTitle('Breathing Settings'),
-    _FullWidthSegment<int>(
-      groupValue: mode == _Mode.preset ? preset : -1,
-      onChanged: (v) => setState(() { mode = _Mode.preset; preset = v; }),
-      children: {
-        0: const Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('Beginner')),
-        1: const Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('Balanced')),
-        2: const Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('Advanced')),
-      },
-    ),
-    const SizedBox(height: 12),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const _SectionTitle('Breathing Settings'),
+          _FullWidthSegment<int>(
+            groupValue: mode == _Mode.preset ? preset : -1,
+            onChanged: (v) => setState(() {
+              mode = _Mode.preset;
+              preset = v;
+            }),
+            children: {
+              0: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Text('Beginner'),
+              ),
+              1: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Text('Balanced'),
+              ),
+              2: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Text('Advanced'),
+              ),
+            },
+          ),
+          const SizedBox(height: 12),
 
-    // Custom Times (renamed + centered)
-    GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => setState(() => mode = _Mode.custom),
-      child: const Padding(
-        padding: EdgeInsets.symmetric(vertical: 6),
-        child: Text('Custom Times', textAlign: TextAlign.center),
+          // Custom Times (renamed + centered)
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => mode = _Mode.custom),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 6),
+              child: Text('Custom Times', textAlign: TextAlign.center),
+            ),
+          ),
+          if (mode == _Mode.custom)
+            _CustomPickers(
+              value: custom,
+              onChanged: (s) => setState(() => custom = s),
+            ),
+          const SizedBox(height: 12),
+
+          // Appearance (now visually identical to the section above)
+          const _SectionTitle('Appearance'),
+          _FullWidthSegment<Appearance>(
+            groupValue: _appearance,
+            onChanged: (v) {
+              setState(() => _appearance = v);
+              appearance.value = v; // persist + notify
+            },
+            children: const {
+              Appearance.system: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Text('System'),
+              ),
+              Appearance.light: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Text('Light'),
+              ),
+              Appearance.dark: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Text('Dark'),
+              ),
+            },
+          ),
+        ],
       ),
-    ),
-    if (mode == _Mode.custom)
-      _CustomPickers(value: custom, onChanged: (s) => setState(() => custom = s)),
-    const SizedBox(height: 12),
-
-    // Appearance (now visually identical to the section above)
-    const _SectionTitle('Appearance'),
-    _FullWidthSegment<Appearance>(
-      groupValue: _appearance,
-      onChanged: (v) {
-        setState(() => _appearance = v);
-        appearance.value = v; // persist + notify
-      },
-      children: const {
-        Appearance.system: Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6), child: Text('System')),
-        Appearance.light:  Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6), child: Text('Light')),
-        Appearance.dark:   Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6), child: Text('Dark')),
-      },
-    ),
-  ],
-),
       actions: [
         CupertinoActionSheetAction(
           onPressed: () => Navigator.of(context).pop(_selected()),
@@ -684,11 +781,16 @@ class _CustomPickers extends StatelessWidget {
               height: 120,
               child: CupertinoPicker(
                 itemExtent: 32,
-                scrollController:
-                    FixedExtentScrollController(initialItem: (current.clamp(1, 60)) - 1),
+                scrollController: FixedExtentScrollController(
+                  initialItem: (current.clamp(1, 60)) - 1,
+                ),
                 onSelectedItemChanged: (i) => onSec(i + 1),
                 children: List.generate(
-                    60, (i) => Center(child: Text('${i + 1}s', style: TextStyle(color: ink)))),
+                  60,
+                  (i) => Center(
+                    child: Text('${i + 1}s', style: TextStyle(color: ink)),
+                  ),
+                ),
               ),
             ),
           ],
@@ -706,6 +808,7 @@ class _CustomPickers extends StatelessWidget {
     );
   }
 }
+
 class _Stat extends StatelessWidget {
   final String label;
   final String value;
@@ -717,7 +820,10 @@ class _Stat extends StatelessWidget {
       children: [
         Text(label, style: TextStyle(color: ink.withOpacity(.70))),
         const SizedBox(width: 8),
-        Text(value, style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
+        Text(
+          value,
+          style: TextStyle(color: ink, fontWeight: FontWeight.w600),
+        ),
       ],
     );
   }
@@ -793,8 +899,10 @@ class _ProgressPageState extends State<ProgressPage> {
     await showCupertinoModalPopup(
       context: context,
       builder: (_) => CupertinoActionSheet(
-        title: Text('Show bars for...',
-            style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
+        title: Text(
+          'Show bars for...',
+          style: TextStyle(color: ink, fontWeight: FontWeight.w600),
+        ),
         actions: [
           CupertinoActionSheetAction(
             onPressed: () {
@@ -825,120 +933,6 @@ class _ProgressPageState extends State<ProgressPage> {
       ),
     );
   }
-    // Title row
-    GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _openHistory(context),
-      onLongPress: () => _pickRange(context),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Text('Weekly Sessions',
-              style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w600)),
-          const SizedBox(width: 8),
-          Icon(CupertinoIcons.info, size: 16, color: ink.withOpacity(.45)),
-        ],
-      ),
-    ),
-    const _RowSpacer(12),
-
-    // Bars area — keeps original look, just a touch taller for breathing room
-    SizedBox(
-      height: 110,
-      child: days.length <= 7
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(days.length, (i) {
-                final v = days[i].$2;
-                final barH = (v == 0) ? 18.0 : (18 + (v.clamp(0, 6) * 12)).toDouble();
-                return Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 260),
-                        curve: Curves.easeInOutCubic,
-                        width: 22,
-                        height: barH,
-                        decoration: BoxDecoration(
-                          color: T.ring(context, v == 0 ? .10 : .28),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(_dayLetter(days[i].$1),
-                          style: TextStyle(color: ink.withOpacity(.55), letterSpacing: .5)),
-                    ],
-                  ),
-                );
-              }),
-            )
-          : CupertinoScrollbar(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: List.generate(days.length, (i) {
-                    final v = days[i].$2;
-                    final barH = (v == 0) ? 18.0 : (18 + (v.clamp(0, 6) * 12)).toDouble();
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 260),
-                            curve: Curves.easeInOutCubic,
-                            width: 22,
-                            height: barH,
-                            decoration: BoxDecoration(
-                              color: T.ring(context, v == 0 ? .10 : .28),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(_dayLetter(days[i].$1),
-                              style: TextStyle(color: ink.withOpacity(.55), letterSpacing: .5)),
-                        ],
-                      ),
-                    );
-                  }),
-                ),
-              ),
-            ),
-    ),
-
-    const _RowSpacer(16),
-    // Metrics — clean 2-column grid, aligned on the x-axis
-    Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _Stat('Today:', '${_today()} session(s)'),
-              const _RowSpacer(8),
-              _Stat('This month:', '${_monthTotal(DateTime.now())}'),
-            ],
-          ),
-        ),
-        const SizedBox(width: 24),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _Stat('This week:', '${_weekTotal(days)}'),
-              const _RowSpacer(8),
-              _Stat('Streak:', '${_currentStreak()}   •   Best streak: ${_bestStreak()}'),
-            ],
-          ),
-        ),
-      ],
-    ),
-  ],
-),
 
   // ------------ helpers ------------
   static String _key(DateTime d) =>
@@ -990,7 +984,8 @@ class _ProgressPageState extends State<ProgressPage> {
 
   Future<void> _exportCsv(BuildContext context) async {
     // Build CSV: date,sessions sorted newest → oldest
-    final entries = _week.entries.toList()..sort((a, b) => b.key.compareTo(a.key));
+    final entries = _week.entries.toList()
+      ..sort((a, b) => b.key.compareTo(a.key));
     final csv = StringBuffer('date,sessions\n');
     for (final e in entries) {
       csv.writeln('${e.key},${e.value}');
@@ -1002,7 +997,9 @@ class _ProgressPageState extends State<ProgressPage> {
       context: context,
       builder: (_) => const CupertinoAlertDialog(
         title: Text('Exported'),
-        content: Text('CSV copied to clipboard. Paste it into Notes, Numbers, or Excel.'),
+        content: Text(
+          'CSV copied to clipboard. Paste it into Notes, Numbers, or Excel.',
+        ),
       ),
     );
   }
@@ -1019,8 +1016,10 @@ class _ProgressPageState extends State<ProgressPage> {
     await showCupertinoModalPopup(
       context: context,
       builder: (_) => CupertinoActionSheet(
-        title:
-            Text('Last 30 Days', style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
+        title: Text(
+          'Last 30 Days',
+          style: TextStyle(color: ink, fontWeight: FontWeight.w600),
+        ),
         message: SizedBox(
           height: 360,
           child: CupertinoScrollbar(
@@ -1028,7 +1027,15 @@ class _ProgressPageState extends State<ProgressPage> {
               itemCount: last30.length,
               itemBuilder: (_, i) {
                 final (d, v) = last30[i];
-                final w = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.weekday % 7];
+                final w = [
+                  'Sun',
+                  'Mon',
+                  'Tue',
+                  'Wed',
+                  'Thu',
+                  'Fri',
+                  'Sat',
+                ][d.weekday % 7];
                 final label =
                     "$w ${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
                 return Padding(
@@ -1037,9 +1044,13 @@ class _ProgressPageState extends State<ProgressPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(label, style: TextStyle(color: ink)),
-                      Text(v.toString(),
-                          style: TextStyle(
-                              color: ink.withOpacity(.75), fontWeight: FontWeight.w600)),
+                      Text(
+                        v.toString(),
+                        style: TextStyle(
+                          color: ink.withOpacity(.75),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -1077,8 +1088,14 @@ class _ProgressPageState extends State<ProgressPage> {
     return CupertinoPageScaffold(
       backgroundColor: bg,
       navigationBar: CupertinoNavigationBar(
-        middle: Text('Progress',
-            style: TextStyle(color: ink, fontSize: 22, fontWeight: FontWeight.w600)),
+        middle: Text(
+          'Progress',
+          style: TextStyle(
+            color: ink,
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         border: null,
         backgroundColor: CupertinoDynamicColor.resolve(T.surface, context),
         trailing: CupertinoButton(
@@ -1103,10 +1120,20 @@ class _ProgressPageState extends State<ProgressPage> {
                     onLongPress: () => _pickRange(context),
                     child: Row(
                       children: [
-                        Text('Weekly Sessions',
-                            style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w600)),
+                        Text(
+                          'Weekly Sessions',
+                          style: TextStyle(
+                            color: ink,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        Icon(CupertinoIcons.info, size: 16, color: ink.withOpacity(.45)),
+                        Icon(
+                          CupertinoIcons.info,
+                          size: 16,
+                          color: ink.withOpacity(.45),
+                        ),
                       ],
                     ),
                   ),
@@ -1121,19 +1148,25 @@ class _ProgressPageState extends State<ProgressPage> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: List.generate(days.length, (i) {
                               final v = days[i].$2;
-                              final barH =
-                                  (v == 0) ? 18.0 : (18 + (v.clamp(0, 6) * 12)).toDouble();
+                              final barH = (v == 0)
+                                  ? 18.0
+                                  : (18 + (v.clamp(0, 6) * 12)).toDouble();
                               return Expanded(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
                                     AnimatedContainer(
-                                      duration: const Duration(milliseconds: 260),
+                                      duration: const Duration(
+                                        milliseconds: 260,
+                                      ),
                                       curve: Curves.easeInOutCubic,
                                       width: 22,
                                       height: barH,
                                       decoration: BoxDecoration(
-                                        color: T.ring(context, v == 0 ? .10 : .28),
+                                        color: T.ring(
+                                          context,
+                                          v == 0 ? .10 : .28,
+                                        ),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                     ),
@@ -1154,7 +1187,9 @@ class _ProgressPageState extends State<ProgressPage> {
                         : CupertinoScrollbar(
                             child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                              ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: List.generate(days.length, (i) {
@@ -1163,20 +1198,27 @@ class _ProgressPageState extends State<ProgressPage> {
                                       ? 18.0
                                       : (18 + (v.clamp(0, 6) * 12)).toDouble();
                                   return Padding(
-                                    padding:
-                                        const EdgeInsets.symmetric(horizontal: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
                                     child: Column(
                                       mainAxisAlignment: MainAxisAlignment.end,
                                       children: [
                                         AnimatedContainer(
-                                          duration:
-                                              const Duration(milliseconds: 260),
+                                          duration: const Duration(
+                                            milliseconds: 260,
+                                          ),
                                           curve: Curves.easeInOutCubic,
                                           width: 22,
                                           height: barH,
                                           decoration: BoxDecoration(
-                                            color: T.ring(context, v == 0 ? .10 : .28),
-                                            borderRadius: BorderRadius.circular(10),
+                                            color: T.ring(
+                                              context,
+                                              v == 0 ? .10 : .28,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(height: 8),
@@ -1200,14 +1242,20 @@ class _ProgressPageState extends State<ProgressPage> {
                   const SizedBox(height: 18),
 
                   // Today + week summary
-                  Text('Today: ${_today()} session(s)',
-                      style: TextStyle(color: ink.withOpacity(.75), fontSize: 16)),
+                  Text(
+                    'Today: ${_today()} session(s)',
+                    style: TextStyle(color: ink.withOpacity(.75), fontSize: 16),
+                  ),
                   const SizedBox(height: 6),
-                  Text('This week: ${_weekTotal(days)}   •   Streak: ${_currentStreak()}',
-                      style: TextStyle(color: ink.withOpacity(.55), fontSize: 14)),
+                  Text(
+                    'This week: ${_weekTotal(days)}   •   Streak: ${_currentStreak()}',
+                    style: TextStyle(color: ink.withOpacity(.55), fontSize: 14),
+                  ),
                   const SizedBox(height: 4),
-                  Text('This month: ${_monthTotal(DateTime.now())}   •   Best streak: ${_bestStreak()}',
-                      style: TextStyle(color: ink.withOpacity(.55), fontSize: 14)),
+                  Text(
+                    'This month: ${_monthTotal(DateTime.now())}   •   Best streak: ${_bestStreak()}',
+                    style: TextStyle(color: ink.withOpacity(.55), fontSize: 14),
+                  ),
                 ],
               ),
             ),
