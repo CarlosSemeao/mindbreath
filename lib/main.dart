@@ -677,70 +677,93 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final ink = CupertinoDynamicColor.resolve(T.ink, context);
-    return CupertinoActionSheet(
-      message: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const _SectionTitle('Breathing Settings'),
-          _FullWidthSegment<int>(
-  groupValue: mode == _Mode.preset ? preset : null,
-  onChanged: (v) => setState(() { mode = _Mode.preset; preset = v; }),
-  children: const {
-    0: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('Beginner')),
-    1: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('Balanced')),
-    2: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('Advanced')),
-  },
-)
-          const SizedBox(height: 12),
+Widget build(BuildContext context) {
+  final ink = CupertinoDynamicColor.resolve(T.ink, context);
 
-          // Custom Times (renamed + centered)
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => mode = _Mode.custom),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 6),
-              child: Text('Custom Times', textAlign: TextAlign.center),
+  return CupertinoActionSheet(
+    message: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const _SectionTitle('Breathing Settings'),
+        _FullWidthSegment<int>(
+          groupValue: mode == _Mode.preset ? preset : null,
+          onChanged: (v) => setState(() {
+            mode = _Mode.preset;
+            preset = v;
+          }),
+          children: const {
+            0: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Text('Beginner'),
             ),
+            1: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Text('Balanced'),
+            ),
+            2: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Text('Advanced'),
+            ),
+          },
+        ),
+        const SizedBox(height: 12),
+
+        // Custom Times
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => mode = _Mode.custom),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 6),
+            child: Text('Custom Times', textAlign: TextAlign.center),
           ),
-          if (mode == _Mode.custom)
-            _CustomPickers(
-              value: custom,
-              onChanged: (s) => setState(() => custom = s),
-            ),
-          const SizedBox(height: 12),
+        ),
+        if (mode == _Mode.custom)
+          _CustomPickers(
+            value: custom,
+            onChanged: (s) => setState(() => custom = s),
+          ),
 
-          // Appearance (now visually identical to the section above)
-          const _SectionTitle('Appearance'),
-          _FullWidthSegment<Appearance>(
-  groupValue: _appearance,
-  onChanged: (v) {
-    setState(() => _appearance = v);
-    appearance.value = v;
-  },
-  children: const {
-    Appearance.system: Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6), child: Text('System')),
-    Appearance.light:  Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6), child: Text('Light')),
-    Appearance.dark:   Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6), child: Text('Dark')),
-  },
-)
-      actions: [
-        CupertinoActionSheetAction(
-          onPressed: () => Navigator.of(context).pop(_selected()),
-          isDefaultAction: true,
-          child: Text('Save', style: TextStyle(color: ink)),
+        const SizedBox(height: 12),
+
+        // Appearance
+        const _SectionTitle('Appearance'),
+        _FullWidthSegment<Appearance>(
+          groupValue: _appearance,
+          onChanged: (v) {
+            setState(() => _appearance = v);
+            appearance.value = v; // persist + notify
+          },
+          children: const {
+            Appearance.system: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Text('System'),
+            ),
+            Appearance.light: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Text('Light'),
+            ),
+            Appearance.dark: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Text('Dark'),
+            ),
+          },
         ),
       ],
-      cancelButton: CupertinoActionSheetAction(
-        onPressed: () => Navigator.pop(context),
-        isDestructiveAction: false,
-        child: Text('Cancel', style: TextStyle(color: ink)),
+    ),
+    actions: [
+      CupertinoActionSheetAction(
+        onPressed: () => Navigator.of(context).pop(_selected()),
+        isDefaultAction: true,
+        child: Text('Save', style: TextStyle(color: ink)),
       ),
-    );
-  }
+    ],
+    cancelButton: CupertinoActionSheetAction(
+      onPressed: () => Navigator.pop(context),
+      isDestructiveAction: false,
+      child: Text('Cancel', style: TextStyle(color: ink)),
+    ),
+  );
 }
-
 class _CustomPickers extends StatelessWidget {
   final BreathSettings value;
   final ValueChanged<BreathSettings> onChanged;
