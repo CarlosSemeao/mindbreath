@@ -693,18 +693,33 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               mode = _Mode.preset;
               preset = v;
             }),
-            children: const {
+            children: {
               0: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text('Beginner'),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Text(
+                  'Beginner',
+                  style: TextStyle(
+                    color: CupertinoDynamicColor.resolve(T.ink, context),
+                  ),
+                ),
               ),
               1: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text('Balanced'),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Text(
+                  'Balanced',
+                  style: TextStyle(
+                    color: CupertinoDynamicColor.resolve(T.ink, context),
+                  ),
+                ),
               ),
               2: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text('Advanced'),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Text(
+                  'Advanced',
+                  style: TextStyle(
+                    color: CupertinoDynamicColor.resolve(T.ink, context),
+                  ),
+                ),
               ),
             },
           ),
