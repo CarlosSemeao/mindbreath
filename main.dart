@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,7 +20,9 @@ class AppTitle extends StatelessWidget {
 
     return ShaderMask(
       shaderCallback: (bounds) => LinearGradient(
-        colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight,
+        colors: colors,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ).createShader(bounds),
       child: const Text(
         'MindBreath',
@@ -37,16 +40,20 @@ class AppTitle extends StatelessWidget {
 /* ---------- Theme: teal + minimal, with dark ink text ---------- */
 class T {
   static const primary = CupertinoDynamicColor.withBrightness(
-    color: Color(0xFF14B8A6), darkColor: Color(0xFF2DD4BF),
+    color: Color(0xFF14B8A6),
+    darkColor: Color(0xFF2DD4BF),
   );
   static const bg = CupertinoDynamicColor.withBrightness(
-    color: Color(0xFFF6FBFA), darkColor: Color(0xFF0C1413),
+    color: Color(0xFFF6FBFA),
+    darkColor: Color(0xFF0C1413),
   );
   static const ink = CupertinoDynamicColor.withBrightness(
-    color: Color(0xFF1F2937), darkColor: Color(0xFFE5E7EB),
+    color: Color(0xFF1F2937),
+    darkColor: Color(0xFFE5E7EB),
   );
   static const surface = CupertinoDynamicColor.withBrightness(
-    color: Color(0xAAFFFFFF), darkColor: Color(0x3314B8A6),
+    color: Color(0xAAFFFFFF),
+    darkColor: Color(0x3314B8A6),
   );
   static Color ring(BuildContext c, double a) =>
       CupertinoDynamicColor.resolve(primary, c).withOpacity(a);
@@ -121,7 +128,7 @@ class MindBreathApp extends StatelessWidget {
         return CupertinoApp(
           debugShowCheckedModeBanner: false,
           theme: base,
-          // Use builder to apply the chosen brightness (System/Light/Dark)
+          // Apply chosen brightness (System/Light/Dark)
           builder: (context, child) {
             final b = appearance.effectiveBrightness(context);
             return CupertinoTheme(
@@ -176,8 +183,14 @@ class SettingsStore {
   BreathSettings load() {
     final s = prefs.getStringList(_k);
     if (s == null || s.length != 4) return BreathSettings.beginner;
-    return BreathSettings(int.parse(s[0]), int.parse(s[1]), int.parse(s[2]), int.parse(s[3]));
+    return BreathSettings(
+      int.parse(s[0]),
+      int.parse(s[1]),
+      int.parse(s[2]),
+      int.parse(s[3]),
+    );
   }
+
   Future<void> save(BreathSettings v) =>
       prefs.setStringList(_k, [v.inh.toString(), v.hold.toString(), v.ex.toString(), v.rest.toString()]);
 }
@@ -209,8 +222,11 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
   void initState() {
     super.initState();
     _scale = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 1200),
-      lowerBound: 0.70, upperBound: 1.00, value: 0.85,
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+      lowerBound: 0.70,
+      upperBound: 1.00,
+      value: 0.85,
     );
     _float = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
     _init();
@@ -231,30 +247,46 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
     final t = DateTime.now();
     final k = "${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}";
     _week[k] = (_week[k] ?? 0) + 1;
-    final cutoff = t.subtract(const Duration(days: 7));
-    _week.removeWhere((d, _) => DateTime.parse(d).isBefore(DateTime(cutoff.year, cutoff.month, cutoff.day)));
+    final cutoff = t.subtract(const Duration(days: 60));
+    _week.removeWhere(
+      (d, _) => DateTime.parse(d).isBefore(DateTime(cutoff.year, cutoff.month, cutoff.day)),
+    );
     await _prefs.setStringList('week', _week.entries.map((e) => "${e.key}|${e.value}").toList());
     progressTick.value++; // notify Progress page to refresh immediately
   }
 
-  void _start() { if (_running) return; setState(() => _running = true); _go(Phase.inhale); }
+  void _start() {
+    if (_running) return;
+    setState(() => _running = true);
+    _go(Phase.inhale);
+  }
+
   void _stop() {
-    _timer?.cancel(); _scale.stop();
-    setState(() { _running = false; _phase = Phase.rest; _scale.value = 0.85; });
+    _timer?.cancel();
+    _scale.stop();
+    setState(() {
+      _running = false;
+      _phase = Phase.rest;
+      _scale.value = 0.85;
+    });
   }
 
   Duration get _dInhale => Duration(seconds: _settings.inh);
-  Duration get _dHold   => Duration(seconds: _settings.hold);
+  Duration get _dHold => Duration(seconds: _settings.hold);
   Duration get _dExhale => Duration(seconds: _settings.ex);
-  Duration get _dRest   => Duration(seconds: _settings.rest);
+  Duration get _dRest => Duration(seconds: _settings.rest);
 
   void _go(Phase p) {
     _timer?.cancel();
     setState(() => _phase = p);
     if (_haptics) {
       switch (p) {
-        case Phase.hold: HapticFeedback.lightImpact(); break;
-        default: HapticFeedback.selectionClick(); break;
+        case Phase.hold:
+          HapticFeedback.lightImpact();
+          break;
+        default:
+          HapticFeedback.selectionClick();
+          break;
       }
     }
 
@@ -268,27 +300,37 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
         break;
       case Phase.exhale:
         _scale.animateTo(0.70, duration: _dExhale, curve: Curves.easeInOutCubic);
-        _timer = Timer(_dExhale, () async { await _saveToday(); _go(Phase.rest); });
+        _timer = Timer(_dExhale, () async {
+          await _saveToday();
+          _go(Phase.rest);
+        });
         break;
       case Phase.rest:
-        _timer = Timer(_dRest, () { if (_running) _go(Phase.inhale); });
+        _timer = Timer(_dRest, () {
+          if (_running) _go(Phase.inhale);
+        });
         break;
     }
   }
 
   String get _label => switch (_phase) {
         Phase.inhale => 'Inhale',
-        Phase.hold   => 'Hold',
+        Phase.hold => 'Hold',
         Phase.exhale => 'Exhale',
-        Phase.rest   => 'Rest',
+        Phase.rest => 'Rest',
       };
 
   @override
-  void dispose() { _timer?.cancel(); _scale.dispose(); _float.dispose(); super.dispose(); }
+  void dispose() {
+    _timer?.cancel();
+    _scale.dispose();
+    _float.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final bg  = CupertinoDynamicColor.resolve(T.bg, context);
+    final bg = CupertinoDynamicColor.resolve(T.bg, context);
     final ink = CupertinoDynamicColor.resolve(T.ink, context);
 
     return CupertinoPageScaffold(
@@ -319,7 +361,10 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
                         children: [
                           Text('Haptics', style: TextStyle(color: ink.withOpacity(.6))),
                           const SizedBox(width: 8),
-                          CupertinoSwitch(value: _haptics, onChanged: (v) => setState(() => _haptics = v)),
+                          CupertinoSwitch(
+                            value: _haptics,
+                            onChanged: (v) => setState(() => _haptics = v),
+                          ),
                         ],
                       ),
                     ],
@@ -371,9 +416,13 @@ class _BreathePageState extends State<BreathePage> with TickerProviderStateMixin
 
   Future<void> _openSettings() async {
     final result = await showCupertinoModalPopup<BreathSettings>(
-      context: context, builder: (_) => _SettingsSheet(initial: _settings),
+      context: context,
+      builder: (_) => _SettingsSheet(initial: _settings),
     );
-    if (result != null) { setState(() => _settings = result); await _store.save(result); }
+    if (result != null) {
+      setState(() => _settings = result);
+      await _store.save(result);
+    }
   }
 }
 
@@ -417,7 +466,12 @@ class _RingsGlobe extends StatelessWidget {
         Center(
           child: Text(
             label,
-            style: TextStyle(color: ink.withOpacity(.85), fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: .2),
+            style: TextStyle(
+              color: ink.withOpacity(.85),
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              letterSpacing: .2,
+            ),
           ),
         ),
       ],
@@ -437,6 +491,7 @@ class _RingsPainter extends CustomPainter {
       ..drawCircle(c, r * .66, Paint()..color = c2..isAntiAlias = true)
       ..drawCircle(c, r * .36, Paint()..color = c3..isAntiAlias = true);
   }
+
   @override
   bool shouldRepaint(covariant _RingsPainter o) => o.c1 != c1 || o.c2 != c2 || o.c3 != c3;
 }
@@ -462,10 +517,15 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   void initState() {
     super.initState();
     final s = widget.initial;
-    if (_eq(s, BreathSettings.beginner)) preset = 0;
-    else if (_eq(s, BreathSettings.balanced)) preset = 1;
-    else if (_eq(s, BreathSettings.advanced)) preset = 2;
-    else { mode = _Mode.custom; }
+    if (_eq(s, BreathSettings.beginner)) {
+      preset = 0;
+    } else if (_eq(s, BreathSettings.balanced)) {
+      preset = 1;
+    } else if (_eq(s, BreathSettings.advanced)) {
+      preset = 2;
+    } else {
+      mode = _Mode.custom;
+    }
     custom = s;
   }
 
@@ -475,7 +535,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   BreathSettings _selected() {
     if (mode == _Mode.custom) return custom;
     return [BreathSettings.beginner, BreathSettings.balanced, BreathSettings.advanced][preset];
-  }
+    }
 
   @override
   Widget build(BuildContext context) {
@@ -504,10 +564,11 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             child: Text('Or set custom times', style: TextStyle(color: ink)),
           ),
           const SizedBox(height: 8),
-          if (mode == _Mode.custom) _CustomPickers(
-            value: custom,
-            onChanged: (s) => setState(() => custom = s),
-          ),
+          if (mode == _Mode.custom)
+            _CustomPickers(
+              value: custom,
+              onChanged: (s) => setState(() => custom = s),
+            ),
           const SizedBox(height: 10),
           // ------- Appearance (System / Light / Dark) -------
           Align(
@@ -588,9 +649,9 @@ class _CustomPickers extends StatelessWidget {
     return Row(
       children: [
         col('Inhale', value.inh, (s) => onChanged(value.copyWith(inh: s))),
-        col('Hold',   value.hold, (s) => onChanged(value.copyWith(hold: s))),
-        col('Exhale', value.ex,   (s) => onChanged(value.copyWith(ex: s))),
-        col('Rest',   value.rest, (s) => onChanged(value.copyWith(rest: s))),
+        col('Hold', value.hold, (s) => onChanged(value.copyWith(hold: s))),
+        col('Exhale', value.ex, (s) => onChanged(value.copyWith(ex: s))),
+        col('Rest', value.rest, (s) => onChanged(value.copyWith(rest: s))),
       ],
     );
   }
@@ -624,22 +685,210 @@ class _ProgressPageState extends State<ProgressPage> {
     _prefs = await SharedPreferences.getInstance();
     final map = <String, int>{};
     for (final s in _prefs.getStringList('week') ?? []) {
-      final p = s.split('|'); if (p.length == 2) map[p[0]] = int.tryParse(p[1]) ?? 0;
+      final p = s.split('|');
+      if (p.length == 2) map[p[0]] = int.tryParse(p[1]) ?? 0;
     }
     setState(() => _week = map);
   }
 
-  @override
-  Widget build(BuildContext context) {
+  // ---- Range selector (hidden; opened by long-press) -----------------
+  enum _Range { d7, d30, d60 }
+  _Range _range = _Range.d7;
+
+  int _rangeLen() {
+    switch (_range) {
+      case _Range.d30:
+        return 30;
+      case _Range.d60:
+        return 60;
+      case _Range.d7:
+      default:
+        return 7;
+    }
+  }
+
+  static String _key(DateTime d) =>
+      "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+
+  List<(DateTime, int)> _makeDays(int n) {
     final now = DateTime.now();
-    final days = List.generate(7, (i) {
-      final d = now.subtract(Duration(days: 6 - i));
-      final k = "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
-      return (d, _week[k] ?? 0);
+    return List.generate(n, (i) {
+      final d = now.subtract(Duration(days: n - 1 - i));
+      return (d, _week[_key(d)] ?? 0);
+    });
+  }
+
+  Future<void> _pickRange(BuildContext context) async {
+    final ink = CupertinoDynamicColor.resolve(T.ink, context);
+    await showCupertinoModalPopup(
+      context: context,
+      builder: (_) => CupertinoActionSheet(
+        title: Text('Show bars for...', style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              setState(() => _range = _Range.d7);
+              Navigator.pop(context);
+            },
+            child: const Text('Last 7 days'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              setState(() => _range = _Range.d30);
+              Navigator.pop(context);
+            },
+            child: const Text('Last 30 days'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              setState(() => _range = _Range.d60);
+              Navigator.pop(context);
+            },
+            child: const Text('Last 60 days'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
+  // ------------ helpers ------------
+  int _today() => _week[_key(DateTime.now())] ?? 0;
+
+  int _weekTotal(List<(DateTime, int)> days) =>
+      days.fold<int>(0, (sum, e) => sum + e.$2);
+
+  int _monthTotal(DateTime now) {
+    int total = 0;
+    _week.forEach((k, v) {
+      final d = DateTime.parse(k);
+      if (d.year == now.year && d.month == now.month) total += v;
+    });
+    return total;
+  }
+
+  int _currentStreak() {
+    int streak = 0;
+    var d = DateTime.now();
+    while ((_week[_key(d)] ?? 0) > 0) {
+      streak++;
+      d = d.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
+  int _bestStreak() {
+    if (_week.isEmpty) return 0;
+    final days = _week.keys.map(DateTime.parse).toList()..sort();
+    int best = 0, cur = 0;
+    DateTime? prev;
+    for (final d in days) {
+      if ((_week[_key(d)] ?? 0) == 0) continue;
+      if (prev != null && d.difference(prev!).inDays == 1) {
+        cur += 1;
+      } else {
+        cur = 1;
+      }
+      if (cur > best) best = cur;
+      prev = d;
+    }
+    return best;
+    // Note: with the 60-day retention above, this is an “all-time (last 60d)” best.
+  }
+
+  Future<void> _exportCsv(BuildContext context) async {
+    final entries = _week.entries.toList()..sort((a, b) => b.key.compareTo(a.key));
+    final csv = StringBuffer('date,sessions\n');
+    for (final e in entries) {
+      csv.writeln('${e.key},${e.value}');
+    }
+    await Clipboard.setData(ClipboardData(text: csv.toString()));
+    if (!mounted) return;
+    showCupertinoDialog(
+      context: context,
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Exported'),
+        content: const Text('CSV copied to clipboard. Paste it into Notes, Numbers, or Excel.'),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            child: const Text('OK'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openHistory(BuildContext context) async {
+    final now = DateTime.now();
+    final last30 = List.generate(30, (i) {
+      final d = now.subtract(Duration(days: i));
+      return (d, _week[_key(d)] ?? 0);
     });
 
-    final bg  = CupertinoDynamicColor.resolve(T.bg, context);
     final ink = CupertinoDynamicColor.resolve(T.ink, context);
+
+    await showCupertinoModalPopup(
+      context: context,
+      builder: (_) => CupertinoActionSheet(
+        title: Text('Last 30 Days', style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
+        message: SizedBox(
+          height: 360,
+          child: CupertinoScrollbar(
+            child: ListView.builder(
+              itemCount: last30.length,
+              itemBuilder: (_, i) {
+                final (d, v) = last30[i];
+                final w = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.weekday % 7];
+                final label =
+                    "$w ${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(label, style: TextStyle(color: ink)),
+                      Text(
+                        v.toString(),
+                        style: TextStyle(color: ink.withOpacity(.75), fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _exportCsv(context);
+            },
+            child: const Text('Export CSV (copy)'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final days = _makeDays(_rangeLen());
+
+    final bg = CupertinoDynamicColor.resolve(T.bg, context);
+    final ink = CupertinoDynamicColor.resolve(T.ink, context);
+
+    const hPad = 20.0;
+    const vPad = 20.0;
 
     return CupertinoPageScaffold(
       backgroundColor: bg,
@@ -647,44 +896,121 @@ class _ProgressPageState extends State<ProgressPage> {
         middle: Text('Progress', style: TextStyle(color: ink, fontSize: 22, fontWeight: FontWeight.w600)),
         border: null,
         backgroundColor: CupertinoDynamicColor.resolve(T.surface, context),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => _exportCsv(context),
+          child: Icon(CupertinoIcons.square_and_arrow_up, size: 22, color: ink),
+        ),
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(hPad),
           child: _Glass(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              padding: const EdgeInsets.fromLTRB(hPad, vPad, hPad, vPad + 2),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Weekly Sessions',
-                      style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: days.map((e) {
-                      final v = e.$2;
-                      final h = (v == 0) ? 18.0 : (18 + (v.clamp(0, 6) * 12)).toDouble();
-                      return Column(
-                        children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 280),
-                            curve: Curves.easeInOutCubic,
-                            width: 20,
-                            height: h,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              color: T.ring(context, v == 0 ? .10 : .28),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(_dayLetter(e.$1), style: TextStyle(color: ink.withOpacity(.55))),
-                        ],
-                      );
-                    }).toList(),
+                  // Tappable title (tap: history, long-press: range)
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _openHistory(context),
+                    onLongPress: () => _pickRange(context),
+                    child: Row(
+                      children: [
+                        Text('Weekly Sessions',
+                            style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 8),
+                        Icon(CupertinoIcons.info, size: 16, color: ink.withOpacity(.45)),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 14),
-                  Text('Today: ${_today()} session(s)', style: TextStyle(color: ink.withOpacity(.65))),
+
+                  // Bars
+                  SizedBox(
+                    height: 96,
+                    child: days.length <= 7
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: List.generate(days.length, (i) {
+                              final v = days[i].$2;
+                              final barH = (v == 0) ? 18.0 : (18 + (v.clamp(0, 6) * 12)).toDouble();
+                              return Expanded(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    AnimatedContainer(
+                                      duration: const Duration(milliseconds: 260),
+                                      curve: Curves.easeInOutCubic,
+                                      width: 22,
+                                      height: barH,
+                                      decoration: BoxDecoration(
+                                        color: T.ring(context, v == 0 ? .10 : .28),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _dayLetter(days[i].$1),
+                                      style: TextStyle(color: ink.withOpacity(.55), letterSpacing: .5),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          )
+                        : CupertinoScrollbar(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: List.generate(days.length, (i) {
+                                  final v = days[i].$2;
+                                  final barH =
+                                      (v == 0) ? 18.0 : (18 + (v.clamp(0, 6) * 12)).toDouble();
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        AnimatedContainer(
+                                          duration: const Duration(milliseconds: 260),
+                                          curve: Curves.easeInOutCubic,
+                                          width: 22,
+                                          height: barH,
+                                          decoration: BoxDecoration(
+                                            color: T.ring(context, v == 0 ? .10 : .28),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          _dayLetter(days[i].$1),
+                                          style:
+                                              TextStyle(color: ink.withOpacity(.55), letterSpacing: .5),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ),
+                          ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // Summary
+                  Text('Today: ${_today()} session(s)',
+                      style: TextStyle(color: ink.withOpacity(.75), fontSize: 16)),
+                  const SizedBox(height: 6),
+                  Text('This week: ${_weekTotal(_makeDays(7))}   •   Streak: ${_currentStreak()}',
+                      style: TextStyle(color: ink.withOpacity(.55), fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text('This month: ${_monthTotal(DateTime.now())}   •   Best streak: ${_bestStreak()}',
+                      style: TextStyle(color: ink.withOpacity(.55), fontSize: 14)),
                 ],
               ),
             ),
@@ -694,11 +1020,6 @@ class _ProgressPageState extends State<ProgressPage> {
     );
   }
 
-  int _today() {
-    final t = DateTime.now();
-    final k = "${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}";
-    return _week[k] ?? 0;
-  }
-
-  static String _dayLetter(DateTime d) => ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.weekday % 7];
+  static String _dayLetter(DateTime d) =>
+      ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.weekday % 7];
 }
