@@ -949,9 +949,9 @@ class _ProgressPageState extends State<ProgressPage> {
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
-  onPressed: () => Navigator.pop(context),
-  child: Text('Cancel', style: TextStyle(color: ink)),
-),
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel', style: TextStyle(color: ink)),
+        ),
       ),
     );
   }
@@ -1086,9 +1086,9 @@ class _ProgressPageState extends State<ProgressPage> {
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
-  onPressed: Navigator.pop,
-  child: const Text('Close'),
-),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
       ),
     );
   }
