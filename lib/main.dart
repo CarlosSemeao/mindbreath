@@ -602,25 +602,27 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _FullWidthSegment<V> extends StatelessWidget {
-  final V groupValue;
-  final ValueChanged<V> onChanged;
-  final Map<V, Widget> children;
+class _FullWidthSegment<T extends Object> extends StatelessWidget {
+  final T? groupValue;                    // nullable: “nothing selected” = null
+  final ValueChanged<T> onChanged;
+  final Map<T, Widget> children;
+
   const _FullWidthSegment({
     required this.groupValue,
     required this.onChanged,
     required this.children,
   });
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: SizedBox(
         width: double.infinity,
-        child: CupertinoSegmentedControl<V>(
+        child: CupertinoSegmentedControl<T>(
           groupValue: groupValue,
           onValueChanged: onChanged,
-          selectedColor: T.ring(context, .18),
+          selectedColor: TTheme.ring(context, .18), // if your theme class is T, keep T.ring
           unselectedColor: const Color(0x00000000),
           borderColor: T.ring(context, .35),
           children: children,
