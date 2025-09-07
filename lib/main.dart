@@ -681,109 +681,74 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   Widget build(BuildContext context) {
     final ink = CupertinoDynamicColor.resolve(T.ink, context);
 
-    return CupertinoActionSheet(
-      message: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const _SectionTitle('Breathing Settings'),
+    Widget seg(String s) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Text(s, style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
+    );
 
-          _FullWidthSegment<int>(
-            groupValue: mode == _Mode.preset ? preset : null,
-            onChanged: (v) => setState(() {
-              mode = _Mode.preset;
-              preset = v;
-            }),
-            children: {
-              0: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text(
-                  'Beginner',
-                  style: TextStyle(
-                    color: CupertinoDynamicColor.resolve(T.ink, context),
-                  ),
-                ),
-              ),
-              1: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text(
-                  'Balanced',
-                  style: TextStyle(
-                    color: CupertinoDynamicColor.resolve(T.ink, context),
-                  ),
-                ),
-              ),
-              2: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text(
-                  'Advanced',
-                  style: TextStyle(
-                    color: CupertinoDynamicColor.resolve(T.ink, context),
-                  ),
-                ),
-              ),
-            },
-          ),
-
-          const SizedBox(height: 12),
-
-          // Custom Times
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => mode = _Mode.custom),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 6),
-              child: Text('Custom Times', textAlign: TextAlign.center),
+    return CupertinoTheme(
+      data: CupertinoTheme.of(context).copyWith(
+        // This is what selected segmented-control labels use
+        primaryContrastingColor: ink,
+      ),
+      child: CupertinoActionSheet(
+        message: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const _SectionTitle('Breathing Settings'),
+            _FullWidthSegment<int>(
+              groupValue: mode == _Mode.preset ? preset : null,
+              onChanged: (v) => setState(() { mode = _Mode.preset; preset = v; }),
+              children: {
+                0: seg('Beginner'),
+                1: seg('Balanced'),
+                2: seg('Advanced'),
+              },
             ),
-          ),
-
-          if (mode == _Mode.custom)
-            _CustomPickers(
-              value: custom,
-              onChanged: (s) => setState(() => custom = s),
+            const SizedBox(height: 12),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => mode = _Mode.custom),
+              child: Text(
+                'Custom Times',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: ink.withOpacity(.7), fontWeight: FontWeight.w600),
+              ),
             ),
+            if (mode == _Mode.custom)
+              _CustomPickers(value: custom, onChanged: (s) => setState(() => custom = s)),
+            const SizedBox(height: 12),
 
-          const SizedBox(height: 12),
-
-          // Appearance
-          const _SectionTitle('Appearance'),
-          _FullWidthSegment<Appearance>(
-            groupValue: _appearance,
-            onChanged: (v) {
-              setState(() => _appearance = v);
-              appearance.value = v; // persist + notify
-            },
-            children: const {
-              Appearance.system: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Text('System'),
-              ),
-              Appearance.light: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Text('Light'),
-              ),
-              Appearance.dark: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Text('Dark'),
-              ),
-            },
+            const _SectionTitle('Appearance'),
+            _FullWidthSegment<Appearance>(
+              groupValue: _appearance,
+              onChanged: (v) {
+                setState(() => _appearance = v);
+                appearance.value = v;
+              },
+              children: {
+                Appearance.system: seg('System'),
+                Appearance.light:  seg('Light'),
+                Appearance.dark:   seg('Dark'),
+              },
+            ),
+          ],
+        ),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop(_selected()),
+            isDefaultAction: true,
+            child: Text('Save', style: TextStyle(color: ink, fontWeight: FontWeight.w700)),
           ),
         ],
-      ), // <-- closes Column(message:)
-      actions: [
-        CupertinoActionSheetAction(
-          onPressed: () => Navigator.of(context).pop(_selected()),
-          isDefaultAction: true,
-          child: Text('Save', style: TextStyle(color: ink)),
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel', style: TextStyle(color: ink)),
         ),
-      ],
-      cancelButton: CupertinoActionSheetAction(
-        onPressed: () => Navigator.pop(context),
-        isDestructiveAction: false,
-        child: Text('Cancel', style: TextStyle(color: ink)),
       ),
-    ); // <-- closes CupertinoActionSheet
+    );
   }
-} // <-- closes _SettingsSheetState
+}
 
 class _CustomPickers extends StatelessWidget {
   final BreathSettings value;
@@ -950,7 +915,7 @@ class _ProgressPageState extends State<ProgressPage> {
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.pop(context),
-          child: Text('Cancel', style: TextStyle(color: ink)),
+          child: Text('Close', style: TextStyle(color: ink)),
         ),
       ),
     );
@@ -1256,56 +1221,43 @@ class _ProgressPageState extends State<ProgressPage> {
 
                   const SizedBox(height: 18),
 
-                  // Metrics (vertically aligned columns)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Today: ${_today()} session(s)',
-                              style: TextStyle(
-                                color: ink.withOpacity(.75),
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'This month: ${_monthTotal(DateTime.now())}',
-                              style: TextStyle(
-                                color: ink.withOpacity(.55),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
+                  // --- Centered stats, one per line ---
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Today: ${_today()} session(s)',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: ink.withOpacity(.80), fontSize: 16),
                         ),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'This week: ${_weekTotal(days)}',
-                              style: TextStyle(
-                                color: ink.withOpacity(.55),
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Streak: ${_currentStreak()}   •   Best streak: ${_bestStreak()}',
-                              style: TextStyle(
-                                color: ink.withOpacity(.55),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
+                        const SizedBox(height: 8),
+                        Text(
+                          'This week: ${_weekTotal(days)}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: ink.withOpacity(.60), fontSize: 14),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        Text(
+                          'Streak: ${_currentStreak()}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: ink.withOpacity(.60), fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Best streak: ${_bestStreak()}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: ink.withOpacity(.60), fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'This month: ${_monthTotal(DateTime.now())}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: ink.withOpacity(.60), fontSize: 14),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
