@@ -121,3 +121,6 @@ workflows:
             --release \
             --build-name="$MB_BUILD_NAME" \
             --build-number="$BUILD_NUMBER"
+    artifacts:
+        - build/**/outputs/**/*.aab
+        - build/**/outputs/**/mapping.txt
