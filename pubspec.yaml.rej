@@ -1,0 +1,51 @@
+diff a/pubspec.yaml b/pubspec.yaml	(rejected hunks)
+@@ -1,8 +1,13 @@
+ name: mindbreath
++<<<<<<< HEAD
++description: MindBreath iOS app
++publish_to: 'none'
++=======
+ description: "A new Flutter project."
+ # The following line prevents the package from being accidentally published to
+ # pub.dev using `flutter pub publish`. This is preferred for private packages.
+ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
++>>>>>>> 555224a (Update main.dart + iOS Podfiles + configs)
+ 
+ # The following defines the version and build number for your application.
+ # A version number is three numbers separated by dots, like 1.2.43
+@@ -47,16 +52,30 @@ dev_dependencies:
+   flutter_lints: ^5.0.0
+   flutter_launcher_icons: ^0.13.1
+ 
++<<<<<<< HEAD
++=======
+ # For information on the generic Dart part of this file, see the
+ # following page: https://dart.dev/tools/pub/pubspec
+ 
+ # The following section is specific to Flutter packages.
++>>>>>>> 555224a (Update main.dart + iOS Podfiles + configs)
+ flutter:
+ 
+   # The following line ensures that the Material Icons font is
+   # included with your application, so that you can use the icons in
+   # the material Icons class.
+   uses-material-design: true
++<<<<<<< HEAD
++  assets:
++    - assets/icon/
++
++# launcher icons config
++flutter_launcher_icons:
++  ios: true
++  android: false
++  image_path_ios: assets/icon/MB-Icon.png
++  remove_alpha_ios: true
++=======
+ 
+   # To add assets to your application, add an assets section, like this:
+   # assets:
+@@ -88,3 +107,4 @@ flutter:
+   #
+   # For details regarding fonts from package dependencies,
+   # see https://flutter.dev/to/font-from-package
++>>>>>>> 555224a (Update main.dart + iOS Podfiles + configs)
