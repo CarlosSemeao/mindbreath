@@ -1,10 +1,10 @@
 name: mindbreath
 description: "MindBreath"
-publish_to: 'none'
-version: 1.0.1+4
+publish_to: "none"
+version: 1.0.1+50
 
 environment:
-  sdk: ^3.9.2
+  sdk: ">=3.7.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -20,10 +20,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-  # If you add images later, list them under assets:
-  # assets:
-  #   - assets/
 
   fonts:
     - family: Manrope
