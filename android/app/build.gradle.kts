@@ -4,16 +4,17 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// ---- load keystore written by Codemagic script (android/key.properties) ----
-val keystoreProperties = Properties()
-val keystoreFile = rootProject.file("android/key.properties")
-if (keystoreFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystoreFile))
+// Load keystore properties produced by Codemagic script
+val keystorePropsFile = rootProject.file("android/key.properties")
+val keystoreProps = Properties()
+if (keystorePropsFile.exists()) {
+    FileInputStream(keystorePropsFile).use { keystoreProps.load(it) }
 }
+
+fun prop(name: String) = keystoreProps.getProperty(name)?.trim()?.takeIf { it.isNotEmpty() }
 
 android {
     namespace = "com.carlostechops.mindbreath"
@@ -34,27 +35,29 @@ android {
         versionName = flutter.versionName
     }
 
-    // ---- use the keystore for release signing ----
     signingConfigs {
         create("release") {
-            if (keystoreFile.exists()) {
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
+            if (keystorePropsFile.exists()
+                && prop("storeFile") != null
+                && prop("storePassword") != null
+                && prop("keyAlias") != null
+                && prop("keyPassword") != null
+            ) {
+                storeFile = file(prop("storeFile")!!)
+                storePassword = prop("storePassword")
+                keyAlias = prop("keyAlias")
+                keyPassword = prop("keyPassword")
+            } else {
+                println("WARNING: android/key.properties missing or incomplete; release signing not configured.")
             }
         }
     }
 
     buildTypes {
         release {
-            // You can keep minify/shrink off for now; turn on later if you want.
             isMinifyEnabled = false
             isShrinkResources = false
             signingConfig = signingConfigs.getByName("release")
-        }
-        debug {
-            // keep default debug signing
         }
     }
 }
