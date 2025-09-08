@@ -1,0 +1,5 @@
+flutter_launcher_icons:
+  ios: true
+  android: false
+  image_path_ios: assets/icon/MB-Icon.png
+  remove_alpha_ios: true
