@@ -20,21 +20,22 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.carlostechops.mindbreath"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+
+        // ✅ Use the new AGP properties (no *Version suffix)
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
+
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // ❌ Do NOT sign with debug for release (Play will reject).
+            // Let Codemagic sign the AAB, so keep this unset.
+            // signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
         }
     }
 }
