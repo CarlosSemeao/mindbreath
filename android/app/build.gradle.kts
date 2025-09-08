@@ -22,7 +22,7 @@ android {
     defaultConfig {
         applicationId = "com.carlostechops.mindbreath"
 
-        // ✅ Use the new AGP properties (no *Version suffix)
+        // Use AGP properties (no *Version suffix)
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
 
@@ -32,10 +32,17 @@ android {
 
     buildTypes {
         release {
-            // ❌ Do NOT sign with debug for release (Play will reject).
-            // Let Codemagic sign the AAB, so keep this unset.
-            // signingConfig = signingConfigs.getByName("debug")
-            isMinifyEnabled = false
+            // Let Codemagic sign the AAB (no signingConfig here)
+
+            // Enable code + resource shrinking (fixes the Gradle error
+            // if any file enables shrinkResources for release)
+            isMinifyEnabled = true
+            isShrinkResources = true
+
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
