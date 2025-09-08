@@ -4,17 +4,9 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    // Flutter plugin must come after Android/Kotlin
     id("dev.flutter.flutter-gradle-plugin")
 }
-
-// Load keystore properties produced by Codemagic script
-val keystorePropsFile = rootProject.file("android/key.properties")
-val keystoreProps = Properties()
-if (keystorePropsFile.exists()) {
-    FileInputStream(keystorePropsFile).use { keystoreProps.load(it) }
-}
-
-fun prop(name: String) = keystoreProps.getProperty(name)?.trim()?.takeIf { it.isNotEmpty() }
 
 android {
     namespace = "com.carlostechops.mindbreath"
@@ -25,7 +17,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions { jvmTarget = JavaVersion.VERSION_11.toString() }
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11.toString()
+    }
 
     defaultConfig {
         applicationId = "com.carlostechops.mindbreath"
@@ -35,31 +29,40 @@ android {
         versionName = flutter.versionName
     }
 
+    // --- Read keystore from android/app/key.properties
+    val keystoreProperties = Properties()
+    val keystorePropertiesFile = file("key.properties") // <-- android/app/key.properties
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    }
+
     signingConfigs {
         create("release") {
-            if (keystorePropsFile.exists()
-                && prop("storeFile") != null
-                && prop("storePassword") != null
-                && prop("keyAlias") != null
-                && prop("keyPassword") != null
-            ) {
-                storeFile = file(prop("storeFile")!!)
-                storePassword = prop("storePassword")
-                keyAlias = prop("keyAlias")
-                keyPassword = prop("keyPassword")
-            } else {
-                println("WARNING: android/key.properties missing or incomplete; release signing not configured.")
+            val storePath = keystoreProperties.getProperty("storeFile")
+            if (storePath != null) {
+                storeFile = file(storePath)
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
             }
         }
     }
 
     buildTypes {
         release {
+            // Use the real release signing config
+            signingConfig = signingConfigs.getByName("release")
+
+            // Keep these off for now; you can enable later if you want smaller bundles.
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = signingConfigs.getByName("release")
+        }
+        debug {
+            // no release signing here
         }
     }
 }
 
-flutter { source = "../.." }
+flutter {
+    source = "../.."
+}
