@@ -885,7 +885,7 @@ class _ProgressPageState extends State<ProgressPage> {
     final ink = CupertinoDynamicColor.resolve(T.ink, context);
     await showCupertinoModalPopup(
       context: context,
-      builder: (_) => CupertinoActionSheet(
+      builder: (sheetContext) => CupertinoActionSheet(
         title: Text(
           'Show bars for...',
           style: TextStyle(color: ink, fontWeight: FontWeight.w600),
@@ -914,7 +914,7 @@ class _ProgressPageState extends State<ProgressPage> {
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(sheetContext),
           child: Text('Close', style: TextStyle(color: ink)),
         ),
       ),
@@ -1006,7 +1006,7 @@ class _ProgressPageState extends State<ProgressPage> {
 
     await showCupertinoModalPopup(
       context: context,
-      builder: (_) => CupertinoActionSheet(
+      builder: (sheetContext) => CupertinoActionSheet(
         title: Text(
           'Last 30 Days',
           style: TextStyle(color: ink, fontWeight: FontWeight.w600),
@@ -1059,7 +1059,7 @@ class _ProgressPageState extends State<ProgressPage> {
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(sheetContext),
           child: const Text('Close'),
         ),
       ),
