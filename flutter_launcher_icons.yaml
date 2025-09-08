@@ -1,5 +1,13 @@
 flutter_launcher_icons:
   ios: true
-  android: false
+  android: true
+
+  # iOS icon
   image_path_ios: assets/icon/MB-Icon.png
   remove_alpha_ios: true
+
+  # Android icon
+  image_path: assets/icons/app_icon.png
+  adaptive_icon_foreground: assets/icons/ic_foreground.png
+  adaptive_icon_background: "#0C1413"
+  adaptive_icon_monochrome: assets/icons/ic_monochrome.png
