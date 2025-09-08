@@ -103,18 +103,21 @@ workflows:
 
       - name: Configure Android signing (use keystore from Codemagic secure storage)
         script: |
-          echo "storeFile=$CM_KEYSTORE_PATH" > android/key.properties
-          echo "storePassword=$CM_KEYSTORE_PASSWORD" >> android/key.properties
-          echo "keyAlias=$CM_KEY_ALIAS" >> android/key.properties
-          echo "keyPassword=$CM_KEY_PASSWORD" >> android/key.properties
-          
+          set -e
+          cat > android/app/key.properties <<EOF
+          storeFile=$CM_KEYSTORE_PATH
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          keyPassword=$CM_KEY_PASSWORD
+          EOF
+          echo "Wrote android/app/key.properties"
+          # Show path and alias only (hide secrets)
+          echo "storeFile=$(grep '^storeFile=' android/app/key.properties | cut -d= -f2)"
+          echo "keyAlias=$(grep '^keyAlias=' android/app/key.properties | cut -d= -f2)"
+
       - name: Build release AAB
         script: |
           flutter build appbundle \
             --release \
             --build-name="$MB_BUILD_NAME" \
             --build-number="$BUILD_NUMBER"
-
-    artifacts:
-      - build/**/outputs/**/*.aab
-      - build/**/outputs/**/mapping.txt
