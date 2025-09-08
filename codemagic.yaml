@@ -95,6 +95,8 @@ workflows:
       flutter: stable
       vars:
         MB_BUILD_NAME: "1.0.1"
+      android_signing:
+        - MB-Android-jks
     scripts:
       - name: Flutter pub get
         script: flutter pub get
