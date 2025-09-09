@@ -1,7 +1,7 @@
 name: mindbreath
 description: "MindBreath"
 publish_to: 'none'
-version: 1.0.1+4
+version: 1.0.2+1   # bump the marketing version, reset build counter
 
 environment:
   sdk: ^3.9.2
