@@ -54,7 +54,7 @@ workflows:
           echo "mobileprovision bytes: $(wc -c < MB_AppStore_Profile.mobileprovision)"
 
           # ---- verify p12 password before import ----
-          if ! openssl pkcs12 -in cert.p12 -passin pass:"$P12_PASSWORD" -nodes -clcerts -nokeys >/dev/null 2>&1; then
+          if ! openssl pkcs12 -in cert.p12 -legacy -passin pass:"$P12_PASSWORD" -nodes -clcerts -nokeys >/dev/null 2>&1; then
             echo "ERROR: P12_PASSWORD is incorrect for provided P12_BASE64" >&2
             exit 1
           fi
