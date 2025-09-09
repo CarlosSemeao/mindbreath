@@ -363,6 +363,8 @@ class _BreathePageState extends State<BreathePage>
     _float.dispose();
     super.dispose();
   }
+    bool _isTablet(BuildContext context) =>
+    MediaQuery.of(context).size.shortestSide >= 600;
 
   @override
   Widget build(BuildContext context) {
@@ -388,10 +390,12 @@ class _BreathePageState extends State<BreathePage>
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
               child: _Glass(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 16,
-                  ),
+                  padding: EdgeInsets.symmetric(
+                      vertical: (MediaQuery.of(context).size.width > MediaQuery.of(context).size.height) && !_isTablet(context)
+                          ? 8
+                          : 12,
+                      horizontal: 16,
+                    ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -425,66 +429,98 @@ class _BreathePageState extends State<BreathePage>
             Expanded(
               child: LayoutBuilder(
                 builder: (context, box) {
-                  final media = MediaQuery.of(context);
+                  final sz = MediaQuery.of(context).size;
+                  final isLandscape = sz.width > sz.height;
+                  final isTab = _isTablet(context);
 
-                  // Space we actually have inside this Expanded (height is the limiter in landscape)
-                  final availW = media.size.width;
-                  final availH = box.maxHeight;
+                  // Use shortest side so landscape doesn’t blow up the globe.
+                  final shortest = math.min(sz.width, sz.height);
 
-                  // Pick a base diameter that fits BOTH width and height
-                  final target = math.min(availW * 0.68, availH * 0.68);
+                  // Tuned factors for phone/tablet & orientation
+                  final double factor = () {
+                    if (isTab) {
+                      return isLandscape ? 0.64 : 0.72; // iPad: a touch smaller in landscape
+                    } else {
+                      return isLandscape ? 0.58 : 0.72; // iPhone: smaller in landscape
+                    }
+                  }();
 
-                  // Current scale from your breathing animation
-                  final s = _scale.value;
+                  // Cap so it never collides with top/bottom UI
+                  final maxCap = isTab ? 520.0 : 380.0;
+                  final base = math.min(shortest * factor, maxCap);
 
-                  // Gentle float scaled to size (about 1% of diameter)
-                  final dy = math.sin(_float.value * 2 * math.pi) * (target * 0.01);
+                  return AnimatedBuilder(
+                    animation: Listenable.merge([_scale, _float]),
+                    builder: (context, _) {
+                      final s  = _scale.value;
+                      final dy = math.sin(_float.value * 2 * math.pi) * (base * 0.012); // ~1.2% of diameter
+                      final d  = base * s;
 
-                  // Final diameter with safety clamp (never smaller than 120, never taller than the box)
-                  final d = (target * s).clamp(120.0, availH - 12.0);
-
-                  return Center(
-                    child: Transform.translate(
-                      offset: Offset(0, dy),
-                      child: SizedBox(
-                        width: d,
-                        height: d,
-                        child: _RingsGlobe(label: _label),
-                      ),
-                    ),
+                      return Center(
+                        child: Transform.translate(
+                          offset: Offset(0, dy),
+                          child: SizedBox(
+                            width: d,
+                            height: d,
+                            child: _RingsGlobe(label: _label),
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
-              ),
-            ),
+              ), // Removed the extra comma here
+            ), // This closes the Expanded widget
+
             // Controls
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: CupertinoButton.filled(
-                      onPressed: _start,
-                      child: const Text('Start'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: CupertinoButton(
-                      onPressed: _stop,
-                      color: CupertinoDynamicColor.resolve(
-                        T.primary,
-                        context,
-                      ).withOpacity(0.12),
-                      child: Text(
-                        'Stop',
-                        style: TextStyle(
-                          color: ink,
-                          fontWeight: FontWeight.w600,
-                        ),
+              child: LayoutBuilder(
+                builder: (context, c) {
+                  final sz = MediaQuery.of(context).size;
+                  final isLandscape = sz.width > sz.height;
+                  final isTab = _isTablet(context);
+
+                  // On tiny landscape phones, stack vertically; elsewhere keep row.
+                  final bool stack = isLandscape && !isTab && sz.height < 420;
+
+                  final startBtn = CupertinoButton.filled(
+                    onPressed: _start,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: const Text('Start'),
+                  );
+                  final stopBtn = CupertinoButton(
+                    onPressed: _stop,
+                    color: CupertinoDynamicColor.resolve(T.primary, context).withOpacity(0.12),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      'Stop',
+                      style: TextStyle(
+                        color: CupertinoDynamicColor.resolve(T.ink, context),
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                ],
+                  );
+                
+                  if (stack) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        startBtn,
+                        const SizedBox(height: 10),
+                        stopBtn,
+                      ],
+                    );
+                  } else {
+                    return Row(
+                      children: [
+                        Expanded(child: startBtn),
+                        const SizedBox(width: 12),
+                        Expanded(child: stopBtn),
+                      ],
+                    );
+                  }
+                },
               ),
             ),
           ],
