@@ -13,9 +13,12 @@ dependencies:
   shared_preferences: ^2.2.3
 
 dev_dependencies:
-  flutter_launcher_icons: 0.13.1   # pin to the version you actually get
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: 0.13.1   # must match the config key below
 
-# OLD key that v0.13.x understands:
+# 👇 v0.13.x reads this key (NOT 'flutter_launcher_icons:')
 flutter_icons:
   android: true
   ios: true
@@ -23,13 +26,9 @@ flutter_icons:
   adaptive_icon_foreground: assets/icon/MB-Icon.png
   adaptive_icon_background: "#0C1413"
   remove_alpha_ios: true
+
 flutter:
   uses-material-design: true
-
-  # If you add images later, list them under assets:
-  # assets:
-  #   - assets/
-
   fonts:
     - family: Manrope
       fonts:
