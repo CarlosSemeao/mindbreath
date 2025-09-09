@@ -421,17 +421,28 @@ class _BreathePageState extends State<BreathePage>
                 ),
               ),
             ),
-            // Perfectly centered globe
+            // --- Globe that respects available height (no overlap) ---
             Expanded(
-              child: AnimatedBuilder(
-                animation: Listenable.merge([_scale, _float]),
-                builder: (context, _) {
-                  final w = MediaQuery.of(context).size.width;
-                  final base = w * 0.72;
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  final media = MediaQuery.of(context);
+
+                  // Space we actually have inside this Expanded (height is the limiter in landscape)
+                  final availW = media.size.width;
+                  final availH = box.maxHeight;
+
+                  // Pick a base diameter that fits BOTH width and height
+                  final target = math.min(availW * 0.68, availH * 0.68);
+
+                  // Current scale from your breathing animation
                   final s = _scale.value;
-                  final dy =
-                      math.sin(_float.value * 2 * math.pi) * 6; // gentle float
-                  final d = base * s;
+
+                  // Gentle float scaled to size (about 1% of diameter)
+                  final dy = math.sin(_float.value * 2 * math.pi) * (target * 0.01);
+
+                  // Final diameter with safety clamp (never smaller than 120, never taller than the box)
+                  final d = (target * s).clamp(120.0, availH - 12.0);
+
                   return Center(
                     child: Transform.translate(
                       offset: Offset(0, dy),
