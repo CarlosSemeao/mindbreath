@@ -1,13 +1,7 @@
-flutter_launcher_icons:
+flutter_icons:
   android: true
   ios: true
-
-  # one image for both platforms (your new design)
   image_path: assets/icon/MB-Icon.png
-
-  # optional but recommended
-  remove_alpha_ios: true
-
-  # adaptive icon (Android 8+). Use your brand BG color.
   adaptive_icon_foreground: assets/icon/MB-Icon.png
   adaptive_icon_background: "#0C1413"
+  remove_alpha_ios: true
