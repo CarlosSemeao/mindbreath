@@ -2,9 +2,11 @@ flutter_launcher_icons:
   ios: true
   android: true
 
-  # Use the same new design for both platforms
+  # One image for both platforms (your new design)
   image_path: assets/icon/MB-Icon.png
 
-  # Optional Android adaptive icons (they will use the same base design)
+  # (Optional but recommended) Adaptive icons on Android
+  # Foreground should be a transparent PNG. If MB-Icon.png has a solid background,
+  # skip these two lines or provide a transparent foreground.
   adaptive_icon_foreground: assets/icon/MB-Icon.png
   adaptive_icon_background: "#0C1413"
