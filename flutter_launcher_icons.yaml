@@ -1,7 +1,14 @@
+# flutter_launcher_icons.yaml  (root of the repo)
 flutter_icons:
   android: true
   ios: true
+
+  # one image for both platforms
   image_path: assets/icon/MB-Icon.png
+
+  # Android adaptive icon (uses same art centered on a solid bg)
   adaptive_icon_foreground: assets/icon/MB-Icon.png
   adaptive_icon_background: "#0C1413"
+
+  # iOS requirement
   remove_alpha_ios: true
