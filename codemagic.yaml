@@ -20,8 +20,6 @@ workflows:
         script: |
           #!/usr/bin/env bash
           set -euo pipefail
-
-          # ---- sanity on env ----
           : "${KEYCHAIN_PASSWORD:?KEYCHAIN_PASSWORD missing}"
           : "${P12_BASE64:?P12_BASE64 missing}"
           : "${P12_PASSWORD:?P12_PASSWORD missing}"
@@ -30,22 +28,17 @@ workflows:
           KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
 
-          # ---- create & unlock keychain ----
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychains -s "$KEYCHAIN_PATH" ~/Library/Keychains/login.keychain-db /Library/Keychains/System.keychain
           security default-keychain -s "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
 
-          # ---- decode base64 with Python (robust to newlines/whitespace) ----
           python3 - <<'PY'
-          import base64, os, sys, re
+          import base64, os, re
           def write_b64(env_key, out_path):
-              raw = os.environ[env_key]
-              # strip whitespace/newlines that can sneak in from UI pastes
-              raw = re.sub(r'\s+', '', raw)
-              with open(out_path, 'wb') as f:
-                  f.write(base64.b64decode(raw))
+              raw = re.sub(r'\s+', '', os.environ[env_key])
+              with open(out_path, 'wb') as f: f.write(base64.b64decode(raw))
           write_b64('P12_BASE64', 'cert.p12')
           write_b64('MOBILEPROVISION_BASE64', 'MB_AppStore_Profile.mobileprovision')
           PY
@@ -53,26 +46,19 @@ workflows:
           echo "p12 bytes: $(wc -c < cert.p12)"
           echo "mobileprovision bytes: $(wc -c < MB_AppStore_Profile.mobileprovision)"
 
-          # ---- verify p12 password before import ----
           if ! openssl pkcs12 -in cert.p12 -legacy -passin pass:"$P12_PASSWORD" -nodes -clcerts -nokeys >/dev/null 2>&1; then
             echo "ERROR: P12_PASSWORD is incorrect for provided P12_BASE64" >&2
             exit 1
           fi
 
-          # ---- import certificate ----
           security import cert.p12 -k "$KEYCHAIN_PATH" -P "$P12_PASSWORD" -A -T /usr/bin/codesign -T /usr/bin/security
-
-          # allow codesign to use the key non-interactively
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          echo "Identities after import:"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH" || true
 
-          # ---- install provisioning profile ----
           mkdir -p "$PROFILES_DIR"
           mv "MB_AppStore_Profile.mobileprovision" "$PROFILES_DIR/MB_AppStore_Profile.mobileprovision"
-
           echo "✅ Certificate & profile installed"
+
       - name: Create export options (App Store)
         script: |
           cat > export_options.plist <<'EOF'
@@ -92,24 +78,21 @@ workflows:
 
       - name: Set marketing version & bump build number
         script: |
-          # CFBundleShortVersionString (marketing version)
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${APP_VERSION:-1.0.1}" ios/Runner/Info.plist
-
-          # CFBundleVersion (must be integers) → use Codemagic's numeric BUILD_NUMBER
-          if [ -z "${BUILD_NUMBER:-}" ]; then
-            echo "BUILD_NUMBER is missing"; exit 1
-          fi
+          if [ -z "${BUILD_NUMBER:-}" ]; then echo "BUILD_NUMBER is missing"; exit 1; fi
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${BUILD_NUMBER}" ios/Runner/Info.plist
-
-          echo "Info.plist after bump:"
           /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" ios/Runner/Info.plist
-      - name: Ensure Xcode build settings align
-        script: |
-          xcode-project build-settings set MARKETING_VERSION="${APP_VERSION:-1.0.1}" --project ios/Runner.xcodeproj --targets "Runner"
-          xcode-project build-settings set CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" --project ios/Runner.xcodeproj --targets "Runner"
+
+      # ⛔️ Removed the 'Ensure Xcode build settings align' step
+
       - name: Build signed IPA (Release)
-        script: flutter build ipa --release --export-options-plist=export_options.plist
+        script: |
+          flutter build ipa \
+            --release \
+            --export-options-plist=export_options.plist \
+            --build-name="${APP_VERSION:-1.0.1}" \
+            --build-number="${BUILD_NUMBER}"
 
     artifacts:
       - build/ios/ipa/*.ipa
@@ -121,43 +104,3 @@ workflows:
         issuer_id: $APPSTORE_ISSUER_ID
         api_key: $APPSTORE_PRIVATE_KEY
         submit_to_testflight: true
-
-  android_release:
-    name: Android Release (.aab)
-    instance_type: mac_mini_m2
-    max_build_duration: 60
-    environment:
-      flutter: stable
-      groups:
-        - Apple
-      vars:
-        MB_BUILD_NAME: "1.0.1"
-      android_signing:
-        - MB-Android-jks
-    scripts:
-      - name: Flutter pub get
-        script: flutter pub get
-
-      - name: Configure Android signing (use keystore from Codemagic secure storage)
-        script: |
-          set -e
-          cat > android/app/key.properties <<EOF
-          storeFile=$CM_KEYSTORE_PATH
-          storePassword=$CM_KEYSTORE_PASSWORD
-          keyAlias=$CM_KEY_ALIAS
-          keyPassword=$CM_KEY_PASSWORD
-          EOF
-          echo "Wrote android/app/key.properties"
-          # Show path and alias only (hide secrets)
-          echo "storeFile=$(grep '^storeFile=' android/app/key.properties | cut -d= -f2)"
-          echo "keyAlias=$(grep '^keyAlias=' android/app/key.properties | cut -d= -f2)"
-
-      - name: Build release AAB
-        script: |
-          flutter build appbundle \
-            --release \
-            --build-name="$MB_BUILD_NAME" \
-            --build-number="$BUILD_NUMBER"
-    artifacts:
-        - build/**/outputs/**/*.aab
-        - build/**/outputs/**/mapping.txt
