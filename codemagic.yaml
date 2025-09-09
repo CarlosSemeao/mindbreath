@@ -16,63 +16,63 @@ workflows:
       - name: Get dependencies
         script: flutter pub get
 
-- name: Install certificate & provisioning profile from env
-  script: |
-    #!/usr/bin/env bash
-    set -euo pipefail
+      - name: Install certificate & provisioning profile from env
+        script: |
+          #!/usr/bin/env bash
+          set -euo pipefail
 
-    # ---- sanity on env ----
-    : "${KEYCHAIN_PASSWORD:?KEYCHAIN_PASSWORD missing}"
-    : "${P12_BASE64:?P12_BASE64 missing}"
-    : "${P12_PASSWORD:?P12_PASSWORD missing}"
-    : "${MOBILEPROVISION_BASE64:?MOBILEPROVISION_BASE64 missing}"
+          # ---- sanity on env ----
+          : "${KEYCHAIN_PASSWORD:?KEYCHAIN_PASSWORD missing}"
+          : "${P12_BASE64:?P12_BASE64 missing}"
+          : "${P12_PASSWORD:?P12_PASSWORD missing}"
+          : "${MOBILEPROVISION_BASE64:?MOBILEPROVISION_BASE64 missing}"
 
-    KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
-    PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
+          PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
 
-    # ---- create & unlock keychain ----
-    security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-    security list-keychains -s "$KEYCHAIN_PATH" ~/Library/Keychains/login.keychain-db /Library/Keychains/System.keychain
-    security default-keychain -s "$KEYCHAIN_PATH"
-    security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-    security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          # ---- create & unlock keychain ----
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -s "$KEYCHAIN_PATH" ~/Library/Keychains/login.keychain-db /Library/Keychains/System.keychain
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
 
-    # ---- decode base64 with Python (robust to newlines/whitespace) ----
-    python3 - <<'PY'
-    import base64, os, sys, re
-    def write_b64(env_key, out_path):
-        raw = os.environ[env_key]
-        # strip whitespace/newlines that can sneak in from UI pastes
-        raw = re.sub(r'\s+', '', raw)
-        with open(out_path, 'wb') as f:
-            f.write(base64.b64decode(raw))
-    write_b64('P12_BASE64', 'cert.p12')
-    write_b64('MOBILEPROVISION_BASE64', 'MB_AppStore_Profile.mobileprovision')
-    PY
+          # ---- decode base64 with Python (robust to newlines/whitespace) ----
+          python3 - <<'PY'
+          import base64, os, sys, re
+          def write_b64(env_key, out_path):
+              raw = os.environ[env_key]
+              # strip whitespace/newlines that can sneak in from UI pastes
+              raw = re.sub(r'\s+', '', raw)
+              with open(out_path, 'wb') as f:
+                  f.write(base64.b64decode(raw))
+          write_b64('P12_BASE64', 'cert.p12')
+          write_b64('MOBILEPROVISION_BASE64', 'MB_AppStore_Profile.mobileprovision')
+          PY
 
-    echo "p12 bytes: $(wc -c < cert.p12)"
-    echo "mobileprovision bytes: $(wc -c < MB_AppStore_Profile.mobileprovision)"
+          echo "p12 bytes: $(wc -c < cert.p12)"
+          echo "mobileprovision bytes: $(wc -c < MB_AppStore_Profile.mobileprovision)"
 
-    # ---- verify p12 password before import ----
-    if ! openssl pkcs12 -in cert.p12 -passin pass:"$P12_PASSWORD" -nodes -clcerts -nokeys >/dev/null 2>&1; then
-      echo "ERROR: P12_PASSWORD is incorrect for provided P12_BASE64" >&2
-      exit 1
-    fi
+          # ---- verify p12 password before import ----
+          if ! openssl pkcs12 -in cert.p12 -passin pass:"$P12_PASSWORD" -nodes -clcerts -nokeys >/dev/null 2>&1; then
+            echo "ERROR: P12_PASSWORD is incorrect for provided P12_BASE64" >&2
+            exit 1
+          fi
 
-    # ---- import certificate ----
-    security import cert.p12 -k "$KEYCHAIN_PATH" -P "$P12_PASSWORD" -A -T /usr/bin/codesign -T /usr/bin/security
+          # ---- import certificate ----
+          security import cert.p12 -k "$KEYCHAIN_PATH" -P "$P12_PASSWORD" -A -T /usr/bin/codesign -T /usr/bin/security
 
-    # allow codesign to use the key non-interactively
-    security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          # allow codesign to use the key non-interactively
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-    echo "Identities after import:"
-    security find-identity -v -p codesigning "$KEYCHAIN_PATH" || true
+          echo "Identities after import:"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH" || true
 
-    # ---- install provisioning profile ----
-    mkdir -p "$PROFILES_DIR"
-    mv "MB_AppStore_Profile.mobileprovision" "$PROFILES_DIR/MB_AppStore_Profile.mobileprovision"
+          # ---- install provisioning profile ----
+          mkdir -p "$PROFILES_DIR"
+          mv "MB_AppStore_Profile.mobileprovision" "$PROFILES_DIR/MB_AppStore_Profile.mobileprovision"
 
-    echo "✅ Certificate & profile installed"
+          echo "✅ Certificate & profile installed"
       - name: Create export options (App Store)
         script: |
           cat > export_options.plist <<'EOF'
