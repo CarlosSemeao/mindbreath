@@ -124,6 +124,7 @@ workflows:
           storePassword=$ANDROID_KEYSTORE_PASSWORD
           keyAlias=$ANDROID_KEY_ALIAS
           keyPassword=$ANDROID_KEY_PASSWORD
+          storeType=jks
           EOF
 
           # Decode keystore from base64 into /tmp
