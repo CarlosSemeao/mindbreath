@@ -140,8 +140,6 @@ workflows:
 
     publishing:
       google_play:
-        credentials: $GOOGLE_PLAY_JSON   # service account JSON (add as secure env var)
-        track: internal                  # or 'production' when you’re ready
-        package_name: $PACKAGE_NAME
-        submit_for_review: false
+        credentials: $GOOGLE_PLAY_JSON
+        track: internal
         
