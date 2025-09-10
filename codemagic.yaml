@@ -116,50 +116,74 @@ workflows:
       - name: Flutter pub get
         script: flutter pub get
 
-      - name: Configure Android signing
-        script: |
-          #!/usr/bin/env bash
-          set -euo pipefail
+            - name: Configure Android signing (auto-detect)
+              script: |
+                #!/usr/bin/env bash
+                set -euo pipefail
 
-          # 1) Validate env vars exist and are non-empty
-          : "${ANDROID_KEYSTORE_BASE64:?ANDROID_KEYSTORE_BASE64 missing}"
-          : "${ANDROID_KEYSTORE_PASSWORD:?ANDROID_KEYSTORE_PASSWORD missing}"
-          : "${ANDROID_KEY_ALIAS:?ANDROID_KEY_ALIAS missing}"
-          : "${ANDROID_KEY_PASSWORD:?ANDROID_KEY_PASSWORD missing}"
+                echo "🔎 Detecting keystore source…"
 
-          if [[ -z "${ANDROID_KEYSTORE_BASE64// }" ]]; then echo "ANDROID_KEYSTORE_BASE64 is empty"; exit 1; fi
-          if [[ -z "${ANDROID_KEY_ALIAS// }" ]]; then echo "ANDROID_KEY_ALIAS is empty"; exit 1; fi
+                have_custom=false
+                have_cm=false
 
-          # 2) Decode keystore to /tmp (strip any whitespace just in case)
-          echo "$ANDROID_KEYSTORE_BASE64" | tr -d '\n\r ' | base64 --decode > /tmp/keystore.jks
+                if [[ -n "${ANDROID_KEYSTORE_BASE64:-}" && -n "${ANDROID_KEY_ALIAS:-}" ]]; then
+                  have_custom=true
+                fi
+                if [[ -n "${CM_KEYSTORE_PATH:-}" && -n "${CM_KEY_ALIAS:-}" ]]; then
+                  have_cm=true
+                fi
 
-          # 3) Sanity-check the keystore (list aliases) WITHOUT exposing secrets
-          keytool -list -keystore /tmp/keystore.jks -storepass "$ANDROID_KEYSTORE_PASSWORD" >/tmp/keystore_list.txt 2>/dev/null || {
-            echo "❌ Could not open keystore with provided ANDROID_KEYSTORE_PASSWORD"; exit 1;
-          }
-          echo "Keystore aliases:"
-          grep -E '^Alias name:' /tmp/keystore_list.txt || true
+                if $have_custom; then
+                  echo "✅ Using custom ANDROID_* secrets"
+                  : "${ANDROID_KEYSTORE_PASSWORD:?missing ANDROID_KEYSTORE_PASSWORD}"
+                  : "${ANDROID_KEY_PASSWORD:?missing ANDROID_KEY_PASSWORD}"
 
-          # 4) Ensure the expected alias exists
-          if ! grep -q "Alias name: ${ANDROID_KEY_ALIAS}$" /tmp/keystore_list.txt; then
-            echo "❌ Alias '${ANDROID_KEY_ALIAS}' not found in keystore."
-            echo "   Check ANDROID_KEY_ALIAS. (From your local keytool it should be: upload)"
-            exit 1
-          fi
+                  echo "${ANDROID_KEYSTORE_BASE64}" | tr -d '\n\r ' | base64 --decode > /tmp/keystore.jks
 
-          # 5) Write key.properties (include storeType=jks)
-          cat > android/app/key.properties <<EOF
-          storeFile=/tmp/keystore.jks
-          storePassword=$ANDROID_KEYSTORE_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          keyPassword=$ANDROID_KEY_PASSWORD
-          storeType=jks
-          EOF
+                  # Sanity check + alias
+                  keytool -list -keystore /tmp/keystore.jks -storepass "$ANDROID_KEYSTORE_PASSWORD" >/tmp/ks.txt 2>/dev/null \
+                    || { echo "❌ Wrong ANDROID_KEYSTORE_PASSWORD"; exit 1; }
+                  grep -q "Alias name: ${ANDROID_KEY_ALIAS}$" /tmp/ks.txt \
+                    || { echo "❌ Alias '${ANDROID_KEY_ALIAS}' not found in keystore"; cat /tmp/ks.txt; exit 1; }
 
-          echo "✅ key.properties + keystore.jks written"
-          echo "key.properties summary:"
-          grep -E '^(storeFile|keyAlias)=' android/app/key.properties
+                  cat > android/app/key.properties <<EOF
+                  storeFile=/tmp/keystore.jks
+                  storePassword=$ANDROID_KEYSTORE_PASSWORD
+                  keyAlias=$ANDROID_KEY_ALIAS
+                  keyPassword=$ANDROID_KEY_PASSWORD
+                  storeType=jks
+                  EOF
 
+                elif $have_cm; then
+                  echo "✅ Using Codemagic keystore (CM_KEYSTORE_*)"
+                  : "${CM_KEYSTORE_PASSWORD:?missing}"
+                  : "${CM_KEY_ALIAS:?missing}"
+                  : "${CM_KEY_PASSWORD:?missing}"
+
+                  # CM_KEYSTORE_PATH points to a file Codemagic mounts for you.
+                  # Optional sanity check (will pass even if alias is wrong, so we also check alias):
+                  keytool -list -keystore "$CM_KEYSTORE_PATH" -storepass "$CM_KEYSTORE_PASSWORD" >/tmp/ks.txt 2>/dev/null \
+                    || { echo "❌ Wrong CM_KEYSTORE_PASSWORD"; exit 1; }
+                  grep -q "Alias name: ${CM_KEY_ALIAS}$" /tmp/ks.txt \
+                    || { echo "❌ Alias '${CM_KEY_ALIAS}' not found in keystore"; cat /tmp/ks.txt; exit 1; }
+
+                  cat > android/app/key.properties <<EOF
+                  storeFile=$CM_KEYSTORE_PATH
+                  storePassword=$CM_KEYSTORE_PASSWORD
+                  keyAlias=$CM_KEY_ALIAS
+                  keyPassword=$CM_KEY_PASSWORD
+                  storeType=jks
+                  EOF
+
+                else
+                  echo "❌ No signing creds found."
+                  echo "Provide either ANDROID_* secrets (grouped) OR select a keystore so CM_KEYSTORE_* are present."
+                  env | sort | grep -E '^(ANDROID_|CM_KEYSTORE_|CM_KEY_)?' || true
+                  exit 1
+                fi
+
+                echo "📄 key.properties summary:"
+                grep -E '^(storeFile|keyAlias)=' android/app/key.properties || true
       - name: Build release AAB
         script: |
           flutter build appbundle \
