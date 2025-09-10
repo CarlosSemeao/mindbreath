@@ -6,6 +6,8 @@ workflows:
     environment:
       flutter: stable
       xcode: latest
+      groups:
+        - Apple            # loads your P12/Provisioning/App Store Connect vars
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
@@ -19,47 +21,32 @@ workflows:
         script: |
           set -e
 
-          # --- Paths ---
           KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
 
-          # --- Create & activate a dedicated keychain (password must be NON-empty) ---
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychains -s "$KEYCHAIN_PATH"
           security default-keychain -s "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          # Make keychain usable by codesign without prompts
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
 
-          # --- Import .p12 from base64 ---
           echo "$P12_BASE64" | base64 --decode > cert.p12
-          security import cert.p12 \
-            -k "$KEYCHAIN_PATH" \
-            -P "$P12_PASSWORD" \
-            -T /usr/bin/codesign -T /usr/bin/security
-
-          # Grant access to codesign
+          security import cert.p12 -k "$KEYCHAIN_PATH" -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          # Sanity check (should list an Apple Distribution identity)
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
-          # --- Install provisioning profile ---
           mkdir -p "$PROFILES_DIR"
           echo "$MOBILEPROVISION_BASE64" | base64 --decode > "$PROFILES_DIR/MB_AppStore_Profile.mobileprovision"
 
       - name: Enforce manual signing on Runner & Pods
         script: |
           set -e
-          # Runner target
           xcode-project build-settings set CODE_SIGN_STYLE=Manual --project ios/Runner.xcodeproj --targets "Runner"
           xcode-project build-settings set DEVELOPMENT_TEAM=$TEAM_ID --project ios/Runner.xcodeproj --targets "Runner"
           xcode-project build-settings set PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID --project ios/Runner.xcodeproj --targets "Runner"
           xcode-project build-settings set CODE_SIGN_IDENTITY="Apple Distribution" --project ios/Runner.xcodeproj --targets "Runner" --build-config Release
           xcode-project build-settings set PROVISIONING_PROFILE_SPECIFIER="MB_AppStore_Profile" --project ios/Runner.xcodeproj --targets "Runner" --build-config Release
 
-          # Pods-Runner target
           xcode-project build-settings set CODE_SIGN_STYLE=Manual --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner"
           xcode-project build-settings set DEVELOPMENT_TEAM=$TEAM_ID --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner"
           xcode-project build-settings set CODE_SIGN_IDENTITY="Apple Distribution" --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner" --build-config Release
@@ -108,82 +95,81 @@ workflows:
     name: Android Release (.aab)
     instance_type: mac_mini_m2
     max_build_duration: 60
+
     environment:
       flutter: stable
+      groups:
+        - Apple            # IMPORTANT: this loads your ANDROID_* secrets (in your "Apple" group)
       vars:
         MB_BUILD_NAME: "1.0.1"
+
     scripts:
       - name: Flutter pub get
         script: flutter pub get
 
-            - name: Configure Android signing (auto-detect)
-              script: |
-                #!/usr/bin/env bash
-                set -euo pipefail
+      - name: Configure Android signing (auto-detect)
+        script: |
+          #!/usr/bin/env bash
+          set -euo pipefail
 
-                echo "🔎 Detecting keystore source…"
+          echo "🔎 Detecting keystore source…"
 
-                have_custom=false
-                have_cm=false
+          have_custom=false
+          have_cm=false
 
-                if [[ -n "${ANDROID_KEYSTORE_BASE64:-}" && -n "${ANDROID_KEY_ALIAS:-}" ]]; then
-                  have_custom=true
-                fi
-                if [[ -n "${CM_KEYSTORE_PATH:-}" && -n "${CM_KEY_ALIAS:-}" ]]; then
-                  have_cm=true
-                fi
+          [[ -n "${ANDROID_KEYSTORE_BASE64:-}" && -n "${ANDROID_KEY_ALIAS:-}" ]] && have_custom=true
+          [[ -n "${CM_KEYSTORE_PATH:-}" && -n "${CM_KEY_ALIAS:-}" ]] && have_cm=true
 
-                if $have_custom; then
-                  echo "✅ Using custom ANDROID_* secrets"
-                  : "${ANDROID_KEYSTORE_PASSWORD:?missing ANDROID_KEYSTORE_PASSWORD}"
-                  : "${ANDROID_KEY_PASSWORD:?missing ANDROID_KEY_PASSWORD}"
+          if $have_custom; then
+            echo "✅ Using custom ANDROID_* secrets"
+            : "${ANDROID_KEYSTORE_PASSWORD:?missing ANDROID_KEYSTORE_PASSWORD}"
+            : "${ANDROID_KEY_PASSWORD:?missing ANDROID_KEY_PASSWORD}"
 
-                  echo "${ANDROID_KEYSTORE_BASE64}" | tr -d '\n\r ' | base64 --decode > /tmp/keystore.jks
+            # decode keystore
+            echo "${ANDROID_KEYSTORE_BASE64}" | tr -d '\n\r ' | base64 --decode > /tmp/keystore.jks
 
-                  # Sanity check + alias
-                  keytool -list -keystore /tmp/keystore.jks -storepass "$ANDROID_KEYSTORE_PASSWORD" >/tmp/ks.txt 2>/dev/null \
-                    || { echo "❌ Wrong ANDROID_KEYSTORE_PASSWORD"; exit 1; }
-                  grep -q "Alias name: ${ANDROID_KEY_ALIAS}$" /tmp/ks.txt \
-                    || { echo "❌ Alias '${ANDROID_KEY_ALIAS}' not found in keystore"; cat /tmp/ks.txt; exit 1; }
+            # sanity check + alias
+            keytool -list -keystore /tmp/keystore.jks -storepass "$ANDROID_KEYSTORE_PASSWORD" >/tmp/ks.txt 2>/dev/null \
+              || { echo "❌ Wrong ANDROID_KEYSTORE_PASSWORD"; exit 1; }
+            grep -q "Alias name: ${ANDROID_KEY_ALIAS}$" /tmp/ks.txt \
+              || { echo "❌ Alias '${ANDROID_KEY_ALIAS}' not found in keystore"; cat /tmp/ks.txt; exit 1; }
 
-                  cat > android/app/key.properties <<EOF
-                  storeFile=/tmp/keystore.jks
-                  storePassword=$ANDROID_KEYSTORE_PASSWORD
-                  keyAlias=$ANDROID_KEY_ALIAS
-                  keyPassword=$ANDROID_KEY_PASSWORD
-                  storeType=jks
-                  EOF
+            cat > android/app/key.properties <<EOF
+            storeFile=/tmp/keystore.jks
+            storePassword=$ANDROID_KEYSTORE_PASSWORD
+            keyAlias=$ANDROID_KEY_ALIAS
+            keyPassword=$ANDROID_KEY_PASSWORD
+            storeType=jks
+            EOF
 
-                elif $have_cm; then
-                  echo "✅ Using Codemagic keystore (CM_KEYSTORE_*)"
-                  : "${CM_KEYSTORE_PASSWORD:?missing}"
-                  : "${CM_KEY_ALIAS:?missing}"
-                  : "${CM_KEY_PASSWORD:?missing}"
+          elif $have_cm; then
+            echo "✅ Using Codemagic keystore (CM_KEYSTORE_*)"
+            : "${CM_KEYSTORE_PASSWORD:?missing}"
+            : "${CM_KEY_ALIAS:?missing}"
+            : "${CM_KEY_PASSWORD:?missing}"
 
-                  # CM_KEYSTORE_PATH points to a file Codemagic mounts for you.
-                  # Optional sanity check (will pass even if alias is wrong, so we also check alias):
-                  keytool -list -keystore "$CM_KEYSTORE_PATH" -storepass "$CM_KEYSTORE_PASSWORD" >/tmp/ks.txt 2>/dev/null \
-                    || { echo "❌ Wrong CM_KEYSTORE_PASSWORD"; exit 1; }
-                  grep -q "Alias name: ${CM_KEY_ALIAS}$" /tmp/ks.txt \
-                    || { echo "❌ Alias '${CM_KEY_ALIAS}' not found in keystore"; cat /tmp/ks.txt; exit 1; }
+            keytool -list -keystore "$CM_KEYSTORE_PATH" -storepass "$CM_KEYSTORE_PASSWORD" >/tmp/ks.txt 2>/dev/null \
+              || { echo "❌ Wrong CM_KEYSTORE_PASSWORD"; exit 1; }
+            grep -q "Alias name: ${CM_KEY_ALIAS}$" /tmp/ks.txt \
+              || { echo "❌ Alias '${CM_KEY_ALIAS}' not found in keystore"; cat /tmp/ks.txt; exit 1; }
 
-                  cat > android/app/key.properties <<EOF
-                  storeFile=$CM_KEYSTORE_PATH
-                  storePassword=$CM_KEYSTORE_PASSWORD
-                  keyAlias=$CM_KEY_ALIAS
-                  keyPassword=$CM_KEY_PASSWORD
-                  storeType=jks
-                  EOF
+            cat > android/app/key.properties <<EOF
+            storeFile=$CM_KEYSTORE_PATH
+            storePassword=$CM_KEYSTORE_PASSWORD
+            keyAlias=$CM_KEY_ALIAS
+            keyPassword=$CM_KEY_PASSWORD
+            storeType=jks
+            EOF
 
-                else
-                  echo "❌ No signing creds found."
-                  echo "Provide either ANDROID_* secrets (grouped) OR select a keystore so CM_KEYSTORE_* are present."
-                  env | sort | grep -E '^(ANDROID_|CM_KEYSTORE_|CM_KEY_)?' || true
-                  exit 1
-                fi
+          else
+            echo "❌ No signing creds found."
+            echo "Provide either ANDROID_* secrets (group) OR select a keystore in Distribution so CM_KEYSTORE_* exist."
+            exit 1
+          fi
 
-                echo "📄 key.properties summary:"
-                grep -E '^(storeFile|keyAlias)=' android/app/key.properties || true
+          echo "📄 key.properties summary:"
+          grep -E '^(storeFile|keyAlias)=' android/app/key.properties || true
+
       - name: Build release AAB
         script: |
           flutter build appbundle \
