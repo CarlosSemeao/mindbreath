@@ -27,7 +27,7 @@ android {
 
         // *** Explicitly set min/targetSdk
         minSdk = 21
-        targetSdk = 35
+        targetSdk = 36
 
         // *** Tie versioning to pubspec.yaml (e.g. version: 1.0.1+2)
         // Flutter automatically maps "1.0.1+2" → versionName=1.0.1, versionCode=2
