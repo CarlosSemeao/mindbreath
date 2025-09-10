@@ -52,6 +52,10 @@ android {
                     storePassword = keystoreProperties.getProperty("storePassword")
                     keyAlias = keystoreProperties.getProperty("keyAlias")
                     keyPassword = keystoreProperties.getProperty("keyPassword")
+                    val type = keystoreProperties.getProperty("storeType")
+                    if (type != null) {
+                        storeType = type
+                    }
                 }
             }
         }
