@@ -126,11 +126,13 @@ workflows:
           echo "storePassword=$CM_KEYSTORE_PASSWORD" >> android/app/key.properties
           echo "keyAlias=$CM_KEY_ALIAS"              >> android/app/key.properties
           echo "keyPassword=$CM_KEY_PASSWORD"        >> android/app/key.properties
-      - name: Build AAB
-        script: flutter build appbundle --release
-    artifacts:
-      - build/app/outputs/bundle/release/*.aab
-    publishing:
-      google_play:
-        credentials: $GOOGLE_PLAY_JSON
-        track: internal
+            - name: Build AAB
+              script: |
+                # (Optional) marketing version shown to users
+                APP_NAME_VER="${APP_VERSION:-1.0.1}"
+
+                # versionCode must strictly increase on Play
+                flutter build appbundle \
+                  --release \
+                  --build-name="$APP_NAME_VER" \
+                  --build-number="$BUILD_NUMBER"
