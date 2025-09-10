@@ -2,7 +2,6 @@ workflows:
   ios_testflight:
     name: iOS → TestFlight
     max_build_duration: 60
-
     environment:
       flutter: stable
       xcode: latest
@@ -19,7 +18,7 @@ workflows:
 
       - name: Install certificate & provisioning profile from env
         script: |
-          set -e
+          set -euo pipefail
 
           KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
@@ -33,20 +32,21 @@ workflows:
           echo "$P12_BASE64" | base64 --decode > cert.p12
           security import cert.p12 -k "$KEYCHAIN_PATH" -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH" || true
 
           mkdir -p "$PROFILES_DIR"
           echo "$MOBILEPROVISION_BASE64" | base64 --decode > "$PROFILES_DIR/MB_AppStore_Profile.mobileprovision"
 
       - name: Enforce manual signing on Runner & Pods
         script: |
-          set -e
+          set -euo pipefail
+          # Runner target
           xcode-project build-settings set CODE_SIGN_STYLE=Manual --project ios/Runner.xcodeproj --targets "Runner"
           xcode-project build-settings set DEVELOPMENT_TEAM=$TEAM_ID --project ios/Runner.xcodeproj --targets "Runner"
           xcode-project build-settings set PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID --project ios/Runner.xcodeproj --targets "Runner"
           xcode-project build-settings set CODE_SIGN_IDENTITY="Apple Distribution" --project ios/Runner.xcodeproj --targets "Runner" --build-config Release
           xcode-project build-settings set PROVISIONING_PROFILE_SPECIFIER="MB_AppStore_Profile" --project ios/Runner.xcodeproj --targets "Runner" --build-config Release
-
+          # Pods-Runner target
           xcode-project build-settings set CODE_SIGN_STYLE=Manual --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner"
           xcode-project build-settings set DEVELOPMENT_TEAM=$TEAM_ID --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner"
           xcode-project build-settings set CODE_SIGN_IDENTITY="Apple Distribution" --project ios/Pods/Pods.xcodeproj --targets "Pods-Runner" --build-config Release
@@ -54,8 +54,8 @@ workflows:
 
       - name: Create export options (App Store)
         script: |
-          cat > export_options.plist <<'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
+          set -euo pipefail
+          printf '%s' '<?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
             <key>method</key><string>app-store</string>
@@ -66,19 +66,23 @@ workflows:
               <key>com.carlostechops.mindbreath</key><string>MB_AppStore_Profile</string>
             </dict>
             <key>destination</key><string>export</string>
-          </dict></plist>
-          EOF
+          </dict></plist>' > export_options.plist
 
       - name: Set marketing version & bump build number
         script: |
-          if [ -n "$APP_VERSION" ]; then
+          set -euo pipefail
+          if [ -n "${APP_VERSION:-}" ]; then
             /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" ios/Runner/Info.plist || true
           fi
           BUILD_NUM=${CM_BUILD_ID##*-}
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUM" ios/Runner/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" ios/Runner/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" ios/Runner/Info.plist || true
 
       - name: Build signed IPA (Release)
-        script: flutter build ipa --release --export-options-plist=export_options.plist
+        script: |
+          set -euo pipefail
+          flutter build ipa --release --export-options-plist=export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
@@ -95,11 +99,10 @@ workflows:
     name: Android Release (.aab)
     instance_type: mac_mini_m2
     max_build_duration: 60
-
     environment:
       flutter: stable
       groups:
-        - Apple            # IMPORTANT: this loads your ANDROID_* secrets (in your "Apple" group)
+        - Apple        # you placed ANDROID_* secrets in this group
       vars:
         MB_BUILD_NAME: "1.0.1"
 
@@ -118,29 +121,26 @@ workflows:
           have_cm=false
 
           [[ -n "${ANDROID_KEYSTORE_BASE64:-}" && -n "${ANDROID_KEY_ALIAS:-}" ]] && have_custom=true
-          [[ -n "${CM_KEYSTORE_PATH:-}" && -n "${CM_KEY_ALIAS:-}" ]] && have_cm=true
+          [[ -n "${CM_KEYSTORE_PATH:-}"   && -n "${CM_KEY_ALIAS:-}"   ]] && have_cm=true
 
           if $have_custom; then
             echo "✅ Using custom ANDROID_* secrets"
             : "${ANDROID_KEYSTORE_PASSWORD:?missing ANDROID_KEYSTORE_PASSWORD}"
             : "${ANDROID_KEY_PASSWORD:?missing ANDROID_KEY_PASSWORD}"
 
-            # decode keystore
+            # Decode keystore (strip whitespace just in case)
             echo "${ANDROID_KEYSTORE_BASE64}" | tr -d '\n\r ' | base64 --decode > /tmp/keystore.jks
 
-            # sanity check + alias
+            # Sanity-check + alias
             keytool -list -keystore /tmp/keystore.jks -storepass "$ANDROID_KEYSTORE_PASSWORD" >/tmp/ks.txt 2>/dev/null \
               || { echo "❌ Wrong ANDROID_KEYSTORE_PASSWORD"; exit 1; }
             grep -q "Alias name: ${ANDROID_KEY_ALIAS}$" /tmp/ks.txt \
               || { echo "❌ Alias '${ANDROID_KEY_ALIAS}' not found in keystore"; cat /tmp/ks.txt; exit 1; }
 
-            cat > android/app/key.properties <<EOF
-            storeFile=/tmp/keystore.jks
-            storePassword=$ANDROID_KEYSTORE_PASSWORD
-            keyAlias=$ANDROID_KEY_ALIAS
-            keyPassword=$ANDROID_KEY_PASSWORD
-            storeType=jks
-            EOF
+            # Write key.properties via printf (avoids heredoc issues)
+            printf "storeFile=/tmp/keystore.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\nstoreType=jks\n" \
+              "$ANDROID_KEYSTORE_PASSWORD" "$ANDROID_KEY_ALIAS" "$ANDROID_KEY_PASSWORD" \
+              > android/app/key.properties
 
           elif $have_cm; then
             echo "✅ Using Codemagic keystore (CM_KEYSTORE_*)"
@@ -153,13 +153,9 @@ workflows:
             grep -q "Alias name: ${CM_KEY_ALIAS}$" /tmp/ks.txt \
               || { echo "❌ Alias '${CM_KEY_ALIAS}' not found in keystore"; cat /tmp/ks.txt; exit 1; }
 
-            cat > android/app/key.properties <<EOF
-            storeFile=$CM_KEYSTORE_PATH
-            storePassword=$CM_KEYSTORE_PASSWORD
-            keyAlias=$CM_KEY_ALIAS
-            keyPassword=$CM_KEY_PASSWORD
-            storeType=jks
-            EOF
+            printf "storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\nstoreType=jks\n" \
+              "$CM_KEYSTORE_PATH" "$CM_KEYSTORE_PASSWORD" "$CM_KEY_ALIAS" "$CM_KEY_PASSWORD" \
+              > android/app/key.properties
 
           else
             echo "❌ No signing creds found."
@@ -172,6 +168,7 @@ workflows:
 
       - name: Build release AAB
         script: |
+          set -euo pipefail
           flutter build appbundle \
             --release \
             --build-name="$MB_BUILD_NAME" \
