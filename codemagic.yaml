@@ -118,7 +118,36 @@ workflows:
 
       - name: Configure Android signing
         script: |
-          set -e
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          # 1) Validate env vars exist and are non-empty
+          : "${ANDROID_KEYSTORE_BASE64:?ANDROID_KEYSTORE_BASE64 missing}"
+          : "${ANDROID_KEYSTORE_PASSWORD:?ANDROID_KEYSTORE_PASSWORD missing}"
+          : "${ANDROID_KEY_ALIAS:?ANDROID_KEY_ALIAS missing}"
+          : "${ANDROID_KEY_PASSWORD:?ANDROID_KEY_PASSWORD missing}"
+
+          if [[ -z "${ANDROID_KEYSTORE_BASE64// }" ]]; then echo "ANDROID_KEYSTORE_BASE64 is empty"; exit 1; fi
+          if [[ -z "${ANDROID_KEY_ALIAS// }" ]]; then echo "ANDROID_KEY_ALIAS is empty"; exit 1; fi
+
+          # 2) Decode keystore to /tmp (strip any whitespace just in case)
+          echo "$ANDROID_KEYSTORE_BASE64" | tr -d '\n\r ' | base64 --decode > /tmp/keystore.jks
+
+          # 3) Sanity-check the keystore (list aliases) WITHOUT exposing secrets
+          keytool -list -keystore /tmp/keystore.jks -storepass "$ANDROID_KEYSTORE_PASSWORD" >/tmp/keystore_list.txt 2>/dev/null || {
+            echo "❌ Could not open keystore with provided ANDROID_KEYSTORE_PASSWORD"; exit 1;
+          }
+          echo "Keystore aliases:"
+          grep -E '^Alias name:' /tmp/keystore_list.txt || true
+
+          # 4) Ensure the expected alias exists
+          if ! grep -q "Alias name: ${ANDROID_KEY_ALIAS}$" /tmp/keystore_list.txt; then
+            echo "❌ Alias '${ANDROID_KEY_ALIAS}' not found in keystore."
+            echo "   Check ANDROID_KEY_ALIAS. (From your local keytool it should be: upload)"
+            exit 1
+          fi
+
+          # 5) Write key.properties (include storeType=jks)
           cat > android/app/key.properties <<EOF
           storeFile=/tmp/keystore.jks
           storePassword=$ANDROID_KEYSTORE_PASSWORD
@@ -127,9 +156,9 @@ workflows:
           storeType=jks
           EOF
 
-          # Decode keystore from base64 into /tmp
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > /tmp/keystore.jks
           echo "✅ key.properties + keystore.jks written"
+          echo "key.properties summary:"
+          grep -E '^(storeFile|keyAlias)=' android/app/key.properties
 
       - name: Build release AAB
         script: |
