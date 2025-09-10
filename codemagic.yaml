@@ -119,13 +119,23 @@ workflows:
 
       - name: Configure Android signing (use keystore from Codemagic secure storage)
         script: |
-          # Codemagic provides these automatically after you added the keystore:
-          # CM_KEYSTORE_PATH, CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD
-          echo "storeFile=$CM_KEYSTORE_PATH" > android/key.properties
-          echo "storePassword=$CM_KEYSTORE_PASSWORD" >> android/key.properties
-          echo "keyAlias=$CM_KEY_ALIAS" >> android/key.properties
-          echo "keyPassword=$CM_KEY_PASSWORD" >> android/key.properties
-          cat android/key.properties
+          #!/usr/bin/env bash
+          set -euo pipefail
+          : "${CM_KEYSTORE_PATH:?missing}"
+          : "${CM_KEYSTORE_PASSWORD:?missing}"
+          : "${CM_KEY_ALIAS:?missing}"
+          : "${CM_KEY_PASSWORD:?missing}"
+
+          # Write to the module dir: android/app/key.properties (NOT android/key.properties)
+          cat > android/app/key.properties <<EOF
+          storeFile=$CM_KEYSTORE_PATH
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          keyPassword=$CM_KEY_PASSWORD
+          EOF
+
+          echo "Wrote android/app/key.properties"
+          ls -l android/app/key.properties || true
 
       - name: Build release AAB
         script: |
