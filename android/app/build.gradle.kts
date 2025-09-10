@@ -12,7 +12,7 @@ android {
     namespace = "com.carlostechops.mindbreath"
 
     // *** Explicitly set compileSdk instead of relying on flutter.*
-    compileSdk = 35
+    compileSdk = 36
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
