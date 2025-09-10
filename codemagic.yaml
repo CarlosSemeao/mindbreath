@@ -111,35 +111,26 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       flutter: stable
-      groups:
-        - GooglePlay   # create this group in Codemagic and put GOOGLE_PLAY_JSON there
-      vars:
-        PACKAGE_NAME: com.carlostechops.mindbreath
     scripts:
       - name: Get dependencies
         script: flutter pub get
-
-      - name: Configure Android signing (from Codemagic env)
+      - name: Configure Android signing (from env)
         script: |
           #!/usr/bin/env bash
           set -euo pipefail
+          : "${CM_KEYSTORE_PATH:?missing}"
+          : "${CM_KEYSTORE_PASSWORD:?missing}"
+          : "${CM_KEY_ALIAS:?missing}"
+          : "${CM_KEY_PASSWORD:?missing}"
           echo "storeFile=$CM_KEYSTORE_PATH"         >  android/app/key.properties
           echo "storePassword=$CM_KEYSTORE_PASSWORD" >> android/app/key.properties
           echo "keyAlias=$CM_KEY_ALIAS"              >> android/app/key.properties
           echo "keyPassword=$CM_KEY_PASSWORD"        >> android/app/key.properties
-
       - name: Build AAB
-        script: |
-          # Ensure pubspec version is bumped (e.g., version: 1.0.2+3)
-          grep -E '^version:\s' pubspec.yaml
-          # Build release bundle (signing is picked up via key.properties)
-          flutter build appbundle --release
-
+        script: flutter build appbundle --release
     artifacts:
       - build/app/outputs/bundle/release/*.aab
-
     publishing:
       google_play:
         credentials: $GOOGLE_PLAY_JSON
         track: internal
-        
