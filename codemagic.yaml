@@ -111,25 +111,24 @@ workflows:
     environment:
       flutter: stable
       vars:
-        # Optional: set version name here, build number will come from Codemagic counter
         MB_BUILD_NAME: "1.0.1"
     scripts:
       - name: Flutter pub get
         script: flutter pub get
 
-      - name: Configure Android signing (use keystore from Codemagic secure storage)
+      - name: Configure Android signing
         script: |
           set -e
           cat > android/app/key.properties <<EOF
-          storeFile=$CM_KEYSTORE_PATH
-          storePassword=$CM_KEYSTORE_PASSWORD
-          keyAlias=$CM_KEY_ALIAS
-          keyPassword=$CM_KEY_PASSWORD
+          storeFile=/tmp/keystore.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
           EOF
-          echo "Wrote android/app/key.properties"
-          # Show path and alias only (hide secrets)
-          echo "storeFile=$(grep '^storeFile=' android/app/key.properties | cut -d= -f2)"
-          echo "keyAlias=$(grep '^keyAlias=' android/app/key.properties | cut -d= -f2)"
+
+          # Decode keystore from base64 into /tmp
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > /tmp/keystore.jks
+          echo "✅ key.properties + keystore.jks written"
 
       - name: Build release AAB
         script: |
