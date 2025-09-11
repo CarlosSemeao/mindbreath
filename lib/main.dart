@@ -1027,9 +1027,10 @@ class _ProgressPageState extends State<ProgressPage> {
       context: context,
       useRootNavigator: true, // <-- important
       barrierDismissible: true,
-      builder: (_) => const CupertinoAlertDialog(
-        title: Text('Exported'),
-        content: Text('CSV copied to clipboard. Paste it into Notes, Numbers, or Excel.'),
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text(
+            'CSV copied to clipboard. Paste it into Notes, Numbers, or Excel.',
+            ),
         actions: [
           CupertinoDialogAction(
             isDefaultAction: true,
