@@ -6,7 +6,7 @@ workflows:
       flutter: stable
       xcode: latest
       groups:
-        - Apple            # loads your P12/Provisioning/App Store Connect vars
+        - Apple
       vars:
         BUNDLE_ID: com.carlostechops.mindbreath
         TEAM_ID: LRT5QA283X
@@ -19,43 +19,26 @@ workflows:
       - name: Install certificate & provisioning profile from env
         script: |
           set -euo pipefail
-
           KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychains -s "$KEYCHAIN_PATH"
+          security list-keychains -s "$KEYCHAIN_PATH" ~/Library/Keychains/login.keychain-db /Library/Keychains/System.keychain
           security default-keychain -s "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
 
-          echo "$P12_BASE64" | base64 --decode > cert.p12
-          security import cert.p12 -k "$KEYCHAIN_PATH" -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          printf "%s" "$P12_BASE64" | tr -d '\n\r\t ' | base64 --decode > cert.p12
+          security import cert.p12 -k "$KEYCHAIN_PATH" -P "$P12_PASSWORD" -A -T /usr/bin/codesign -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH" || true
 
           mkdir -p "$PROFILES_DIR"
-          echo "$MOBILEPROVISION_BASE64" | base64 --decode > "$PROFILES_DIR/MB_AppStore_Profile.mobileprovision"
+          printf "%s" "$MOBILEPROVISION_BASE64" | tr -d '\n\r\t ' | base64 --decode > "$PROFILES_DIR/MB_AppStore_Profile.mobileprovision"
 
-      - name: Apply provisioning profiles (Codemagic CLI)
-        script: |
-          set -euo pipefail
-          # Map the installed .mobileprovision to the Xcode targets
-          xcode-project use-profiles \
-            --project ios/Runner.xcodeproj \
-            --targets "Runner"
-
-          # Pods target often doesn’t need signing; ignore if it isn’t present
-          xcode-project use-profiles \
-            --project ios/Pods/Pods.xcodeproj \
-            --targets "Pods-Runner" || true
-
-          # Show what got applied
-          xcode-project show-build-settings --project ios/Runner.xcodeproj --targets "Runner" | grep -E "DEVELOPMENT_TEAM|PRODUCT_BUNDLE_IDENTIFIER|PROVISIONING_PROFILE_SPECIFIER|CODE_SIGN_STYLE" || true
       - name: Create export options (App Store)
         script: |
-          set -euo pipefail
-          printf '%s' '<?xml version="1.0" encoding="UTF-8"?>
+          cat > export_options.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
             <key>method</key><string>app-store</string>
@@ -66,32 +49,27 @@ workflows:
               <key>com.carlostechops.mindbreath</key><string>MB_AppStore_Profile</string>
             </dict>
             <key>destination</key><string>export</string>
-          </dict></plist>' > export_options.plist
+          </dict></plist>
+          EOF
 
-      - name: Set marketing version & bump build number
+      - name: Set version & build number
         script: |
           set -euo pipefail
-          if [ -n "${APP_VERSION:-}" ]; then
-            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" ios/Runner/Info.plist || true
-          fi
           BUILD_NUM=${CM_BUILD_ID##*-}
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" ios/Runner/Info.plist || true
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUM" ios/Runner/Info.plist || true
-          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" ios/Runner/Info.plist || true
-          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" ios/Runner/Info.plist || true
+          echo "Will build: $APP_VERSION ($BUILD_NUM)"
 
-            - name: Build signed IPA (Release)
-              script: |
-                set -euo pipefail
-                BUILD_NUM=${CM_BUILD_ID##*-}
-                # sanity: reflect what we plan to build
-                /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" ios/Runner/Info.plist || true
-                /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUM" ios/Runner/Info.plist || true
-                echo "Version about to build: $APP_VERSION ($BUILD_NUM)"
-                flutter build ipa \
-                  --release \
-                  --build-name="$APP_VERSION" \
-                  --build-number="$BUILD_NUM" \
-                  --export-options-plist=export_options.plist
+      - name: Build signed IPA (Release)
+        script: |
+          set -euo pipefail
+          BUILD_NUM=${CM_BUILD_ID##*-}
+          flutter build ipa \
+            --release \
+            --build-name="$APP_VERSION" \
+            --build-number="$BUILD_NUM" \
+            --export-options-plist=export_options.plist
+
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/ipa/*.dSYM.zip
@@ -102,7 +80,6 @@ workflows:
         issuer_id: $APPSTORE_ISSUER_ID
         api_key: $APPSTORE_PRIVATE_KEY
         submit_to_testflight: true
-
   android_release:
     name: Android Release (.aab)
     instance_type: mac_mini_m2
