@@ -1025,12 +1025,13 @@ class _ProgressPageState extends State<ProgressPage> {
     if (!context.mounted) return;
     await showCupertinoDialog(
       context: context,
-      useRootNavigator: true, // <-- important
+      useRootNavigator: true,
       barrierDismissible: true,
       builder: (_) => CupertinoAlertDialog(
-        title: const Text(
-            'CSV copied to clipboard. Paste it into Notes, Numbers, or Excel.',
-            ),
+        title: const Text('Exported'),
+        content: const Text(
+          'CSV copied to clipboard. Paste it into Notes, Numbers, or Excel.',
+        ),
         actions: [
           CupertinoDialogAction(
             isDefaultAction: true,
@@ -1099,7 +1100,7 @@ class _ProgressPageState extends State<ProgressPage> {
         actions: [
           CupertinoActionSheetAction(
             onPressed: () async {
-              Navigator.pop(csheetContext);                // close the sheet
+              Navigator.pop(sheetContext);                // close the sheet
                 await Future.delayed(const Duration(milliseconds: 150)); // let it finish
                 if (context.mounted) {
                     await _exportCsv(context);            // now show the alert on root
