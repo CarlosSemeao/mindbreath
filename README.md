@@ -25,18 +25,18 @@ MindBreath guides users through four breathing phases:
 - Exhale
 - Rest
 
-The app was created to provide a lightweight and distraction-free digital wellbeing tool that is simple to use and grounded in academic research on paced breathing and mindfulness.
+The app was created to provide a lightweight and distraction free digital wellbeing tool that is simple to use and grounded in academic research on paced breathing and mindfulness.
 
 ---
 
 ## Features
 
-- Guided four-phase breathing cycle
+- Guided four phase breathing cycle
 - Animated visual breathing globe
 - Haptic feedback for phase transitions
 - Beginner, Balanced, and Advanced presets
 - Fully custom breathing timings
-- Light, Dark, and System appearance modes
+- Light, Dark and System appearance modes
 - Progress tracking with streaks and weekly charts
 - CSV export for session data
 
@@ -46,7 +46,7 @@ The app was created to provide a lightweight and distraction-free digital wellbe
 
 This project was developed to explore how research breathing exercises can be translated into a practical and accessible mobile application.
 
-MindBreath began as a degree-related artefact focused on digital wellbeing, stress management, and simple user-centred design. The project also allowed me to strengthen skills in mobile development, interface design, and project management.
+MindBreath began as a degree artefact focused on digital wellbeing, stress management and simple user design. The project also allowed me to strengthen skills in mobile development, interface design and project management.
 
 ---
 
