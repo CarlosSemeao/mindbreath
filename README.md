@@ -1,8 +1,10 @@
 # MindBreath
 
+[Download on the App Store](https://apps.apple.com/gb/app/mindbreath/id6752007065)
+
 MindBreath is a guided breathwork app for iOS and Android designed to help users reduce stress and improve focus through structured breathing cycles.
 
-Developed as an Independent Degree-Related Project, MindBreath combines evidence from mindfulness and slow-breathing research with a clean mobile interface, visual breathing guidance, haptic feedback, and progress tracking.
+Developed as an Independent Degree Project, MindBreath combines evidence from mindfulness and slow breathing research with a clean mobile interface, visual breathing guidance, haptic feedback and progress tracking.
 
 ---
 
